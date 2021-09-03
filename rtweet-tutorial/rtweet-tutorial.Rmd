@@ -1,0 +1,1125 @@
+---
+title: "rtweet Tutorial"
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set(echo = FALSE)
+
+library(dplyr)
+```
+
+# **rtweet package tutorial**
+
+- **source code by**: rtweet documentation
+- **by**: Zane Dax (She/They)
+- **Date**: September 3, 2021
+
+This tutorial is to teach on how to use the **rtweet** package from CRAN. 
+
+- Twitter API will be used to scrape twitter accounts and tweets by a phrase or hashtag of interest. 
+- This is not an extensive use-case for all possible function options, for full details on arguments used in functions please read the [documentation](https://cran.r-project.org/web/packages/rtweet/rtweet.pdf)
+
+
+## Using rtweet package
+**Necessary information** to know before lesson on what you need:
+  
+- need a Twitter Developer Account to perform the tasks on your own
+- need to access token for API use
+- running ``search_words`` variable launches Twitter Developer webpage
+where you click authorize rtweets access, then your code runs (it is advised to have the browser window open and ready for the prompt to ask for authorization for Rwteet package)
+
+**Note**: I have provided CSV files so everyone can learn, making concerns over Twitter API 
+secondary.
+
+## User API requests
+The basic use of Twitter API has limits on how often you can request data, every 15 minutes between request calls is required (small data requests can be less than 15 minutes but caution is advised). Based on personal experience, it is *very easy* to rate limit yourself and get restricted access and use of your Twitter bot/ Developer account. It is **strongly advised** that every function made to Twitter have a variable name as to avoid running executive code unnecessarily when typos and changes take place, as well as making saving the data easier. *Check your function call variables  before running them.*
+
+## Libraries
+The following libraries are required in order to follow with tutorial.
+```{r}
+library(rtweet)
+library(tidytext)
+library(ggplot2)
+```
+
+
+```
+library(rtweet)
+library(tidytext)
+library(ggplot2)
+```
+
+## Read a Twitter CSV
+
+*twitter_df = read_twitter_csv(file ="" , unflatten = FALSE).*
+
+
+## Save your Twitter data
+*Here is code on how to save your Twitter data as a CSV*:
+
+the prepend_ids set to true is helpful for later data manipulation. 
+
+```
+save_as_csv(file_name, 
+              file_name = "new-name",
+              prepend_ids = TRUE,
+              na="",
+              fileEncoding = "UTF-8")
+```
+
+
+
+## Search Twitter for Tweets
+*Returns tweets for specified word / phrase / hashtag*
+
+- returns tweets <= 9 days ago only
+- max tweets is 18,000 in a single API request
+- for >18,000 tweets you need to set `retryonratelimit = TRUE`, requires waiting 15 minutes before next call
+- `query` <= 500 characters
+- spaces are treated as "AND"
+- "OR" can be used (capital letters required)
+  - query = "data OR science"
+
+
+- Filter options:
+  - filtering tweets *exclude* items: '-filter'
+  - "-filter:quote"
+  - "-filter:replies"
+  - "filter:news"   returns tweets with links to news articles only
+  - "filter:media"  returns tweets with media only
+
+
+- default is recent:  
+  - `type` = "recent"
+  - `type` = "mixed" 
+  - `type` = "popular"
+
+```
+rstats_searched_tweets = search_tweets(
+  "rstats OR RStats",
+  n= 4000,
+  type = "mixed",
+  include_rts = FALSE,
+  parse = TRUE,
+  verbose = TRUE,
+  retryonratelimit = FALSE,
+  lang="en"
+)
+```
+
+RStats `searched_tweets`
+
+```{r rstats-searched-tweets}
+rstats_searched_tweets = read_twitter_csv("../TwitterData/rstats_searchedTweets.csv")
+rstats_searched_tweets
+
+```
+
+Using the searched tweets dataframe we can use the time series plotting function to generate this plot. The `ts_plot` is a time series frequency plot, you can use `ggplot2` alone if you like or use it in conjunction with the ts_plot().
+```
+ts_plot(rstats_searched_tweets, 
+        by="mins",
+        tz= "America/Edmonton",
+        trim = 1) +
+  labs(title = "Twitter searched: 'rstats' OR 'RStats' tweets by minute ",
+       x="date",
+       y="count")
+```
+
+```{r}
+ts_plot(rstats_searched_tweets, 
+        by="mins",
+        tz= "America/Edmonton",
+        trim = 1)+
+  labs(title = "Twitter searched: 'rstats' OR 'RStats' tweets by minute ",
+       x="date",
+       y="count")+ 
+  theme(plot.subtitle = element_text(size = 11,
+    colour = "gray25"), panel.grid.major = element_line(colour = "gray70"),
+    panel.grid.minor = element_line(colour = "gray70"),
+    axis.title = element_text(size = 13),
+    plot.title = element_text(size = 15,
+        face = "bold"), panel.background = element_rect(fill = "gray"),
+    plot.background = element_rect(fill = "gray")) +labs(subtitle = "A sample of 3937 tweets on Sept. 2 2021",
+    caption = "@StarTrek_Lt  | Sept. 2, 2021 | source: Twitter API and rtweet package")+ 
+  theme(plot.subtitle = element_text(size = 13),
+    plot.caption = element_text(size = 11,
+        colour = "gray20", hjust = 0), axis.text = element_text(size = 12))
+
+
+
+```
+
+### Search for Star Wars Lego Tweets
+
+*Here's an example to execute a Twitter search for tweets with ``lego star wars``.*
+
+```
+# search Twitter for hashtag/ word/ phrase
+# 4000 tweets
+# English language, Spanish "es"
+ 
+searched_tweets = search_tweets("lego star wars",  
+                                n= 4000,          
+                                lang="en")         
+```
+
+Star Wars Lego searched tweets
+
+```{r Twitter-CSV, exercise=FALSE}
+# Load in Star Wars Lego searched tweets csv
+SWL_searched = read_twitter_csv(file = "../TwitterData/StarWarsLego_searchedTweets.csv")
+
+SWL_searched
+
+```
+
+
+### Search Twitter for Multiple Queries 
+
+*This is 1 of 2 methods for retrieving multiple twitter search queries*
+
+The `users_data()` returns a cleaned up tibble of names, ids and follower counts
+
+This code is from the documentation
+```
+# ---- multiple indep. search queries 
+# data_sci_tweets = Map(
+#   "search_tweets",
+#   c("\"data science\"","rstats OR tidytuesday"),
+#   n=1000
+# )
+
+# rowbind to keep users data --- essential to view/ use data
+data_sci_tweets = do_call_rbind( data_sci_tweets )
+
+head(data_sci_tweets)
+
+#---- users data
+users_data(data_sci_tweets)
+```
+
+*This is 2nd method for multiple Twitter queries*
+- Note: there is `search_tweets` and `search_tweets2`, using the latter is more flexible in use and saves one more code steps show above.
+
+```
+dataSci_tweets = search_tweets2(
+  c("data science","RStats","dataviz"),
+  n= 1000
+)
+
+#-- look at the dataframe
+head(dataSci_tweets)
+
+#--- look at each query tweet tally of the 3 queries 
+table(dataSci_tweets$query)
+```
+
+```{r datasci-tweets}
+
+dataSci_tweets = read_twitter_csv("../TwitterData/dataSci_tweets.csv")
+dataSci_tweets
+```
+
+Tally the 3 queries
+```{r dataSci-tally}
+table(dataSci_tweets$query)
+```
+
+
+
+
+## Twitter STOP WORDS 
+*Returns Twitter's dataframe of stop words*
+
+- `stopwordslang`  has 24,000 rows
+-  words associated with 10 different languages: 
+   -  including `c("ar","en","es","fr","in","ja","pt","ru","tr","und")`.
+
+- variables: 
+  - `word`  - potential stop words
+  - `lang`  - 2 or 3 word coce
+  - `p`     - probability value associated with frequency (normal distribution),
+  higher values mean word occurs more frequently (vice versa)
+
+
+``head(stopwordslangs)``
+
+
+
+
+
+
+
+
+
+
+
+
+## Get User's Friends (Followers)
+
+*Here is the code in order to get a list of a Twitter user's friends*
+
+list of twitter IDs followed by specified twitter user. Rate limit of 15 requests per minute.
+
+- 5,000 is rate limit max (default)
+- "-1" = 1st page of JSON, else if user has >5,000 
+
+```
+usr_friends = get_friends(
+  'CaulfieldTim',
+  n = 5000,  
+  page = "-1", 
+  parse= T
+)
+```
+
+The Twitter name for PhD Caulfied is used and to get list of followers, returns a dataframe with integer values for user_id
+```{r get-friends}
+caulfield_friends = read_twitter_csv("../TwitterData/Caulfield_friends.csv")
+caulfield_friends
+```
+
+
+
+
+
+
+## List Search Tweets
+*Grab more than one Twitter user tweets with function ``lapply()``*
+
+Twitter users:
+
+- "JoachimSchork", "theRcast", "rstatsai", "charliejhadley", "dataclaudius"
+
+```
+list_tweets = lapply(c("JoachimSchork", 
+                       "theRcast", 
+                       "rstatsai", 
+                       "charliejhadley", 
+                       "dataclaudius"), 
+                     search_tweets,
+                     n=5000)
+```
+
+Note: list_tweets %>% view() doesn't work for this, you need to 
+call ``rbind`` the list into a dataframe
+
+- ``tweet_df = do_call_rbind(list_tweets)``
+
+now we have a df: ``tweet_df %>% view()``
+
+view the dataframe of tweet data
+``users_data(tweet_df) %>% view()``
+
+
+
+
+
+## Grab Direct Messages 
+*Retrieve 50 of your direct messages in the last 30 days*
+```
+direct_messages(n=50, 
+                next_cursor = NULL,
+                parse = TRUE,
+                token = NULL)
+```
+
+
+
+## Get User Favorites (Likes)
+
+get user's or users favorites/ likes {❤️}. The rate limit is <= 3000 statuses (tweets)
+
+```
+get_favorites(
+  'djnavarro',
+  n = 200,
+  parse = TRUE
+) 
+```
+
+### Use a List for Users Favorites
+*Use a vector for multiple twitter accounts to get each of their liked tweets*
+
+```
+f = c('SaraMynott','DrSeaBove','ivelasq3','JenRichmondPhD','apreshill')
+
+fem_faves = get_favorites( f, n= 400)
+
+fem_faves %>% view()
+
+fem_faves %>% 
+  select(screen_name, text, favorite_count) %>% view()
+```
+```{r Fem-DataSci-Likes}
+
+fem_faves = read_twitter_csv("../TwitterData/fem_faves.csv")
+fem_faves
+
+```
+
+
+
+
+## Get Twitter Mentions of User
+*This returns <= 200 mentions of twitter user*
+
+Returns the last 200 tweets **you** were tagged in a reply.
+
+```
+usr_mentions = get_mentions(
+  n = 200,
+  parse = TRUE
+)
+
+usr_mentions$text
+```
+I have loaded my own Twitter mentions for demonstration.
+
+```{r user-mentions}
+usr_mentions = read_twitter_csv("../TwitterData/ZaneDax_usr_mentions.csv")
+usr_mentions
+
+```
+
+
+## Twitter Timeline
+Returns *your* timeline, the 'home' Twitter tab
+
+The default of timeline tweets is 100, the `checks` is for the rate limit 
+```
+my_twitter_ = get_my_timeline(
+  n= 100, 
+  parse = TRUE,
+  check = TRUE  
+)
+
+my_twitter_$screen_name
+```
+
+My own timeline is provided.
+```{r timeline}
+my_timeline = read_twitter_csv("../TwitterData/ZaneDax_Timeline.csv")
+my_timeline
+
+```
+
+
+### Get Timeline of User
+*Returns <= 3200 statuses (tweets) of single Twitter user*
+
+The `home` values are ``FALSE`` for user-timeline and ``TRUE`` for home-timeline
+
+```
+user_timeline = get_timeline(
+  'JennyBryan',
+  n = 100,
+  home = FALSE, 
+  parse = TRUE,
+  check = TRUE
+)
+user_timeline %>% 
+  select(screen_name, text)
+```
+The Twitter account of Jenny Bryan is used for demonstration
+```{r JennyBryan-timeline}
+user_timeline = read_twitter_csv("../TwitterData/JennyBryan_TwitterTimeline.csv")
+user_timeline
+
+```
+
+
+### Get Users Timelines
+*Returns <= 3200 statuses (tweets) for each Twitter user specified*
+
+```
+group_timelines = get_timelines(
+  c('annapurani93','er13_r', 'JennyBryan'), # users
+  n= 100,
+  home = F,
+  parse = T,
+  check = T
+)
+
+group_timelines %>% 
+  select(screen_name, text) %>% view()
+
+group_timelines$text
+```
+The timeline of 'annapurani93','er13_r', 'JennyBryan'
+
+```{r group-timelines}
+
+group_timelines = read_twitter_csv("../TwitterData/Twitter_group_timelines.csv")
+group_timelines
+```
+
+
+
+
+
+
+
+
+## Get Twitter retweeters
+*Returns IDs of users who retweeted status*
+The maximum of queries is 100 per request
+
+`status_id` is required and is the long integer associated with a tweet (status)
+```
+retweeters = get_retweeters(
+  '1433117508853186569', 
+  n = 100,
+  parse = TRUE
+)
+retweeters
+```
+
+
+## Get Retweets
+*Returns a collection of 100 recent retweets of a specific tweet (status)*
+
+The maximum for queries is 100.
+
+- One way of finding a ``status_id`` can be done by going to your own Twitter timeline or notifications and find a tweet that was retweeted,  click on one of the account users who retweeted your tweet. Then scroll to find where it shows on their timeline of retweeting your tweet, click on it. Look at the url address bar to find the integer value.
+
+```
+re_tweets = get_retweets(
+  '1433546561225576448', 
+  n = 100,
+  parse = TRUE
+)
+
+re_tweets %>% 
+  select(screen_name, text) %>% view()
+```
+
+```{r retweets}
+re_tweets = read_twitter_csv("../TwitterData/ZaneDax_retweets.csv")
+re_tweets
+
+```
+
+
+
+## Get Trends on Twitter
+*Returns Twitter trends for specific location*
+
+- 'city-name' or 'country-name' can be used. 
+- Where On Earth ID (WOEID) can be used : *e.g. Toronto: 4118*
+- can use lat= and lng= values
+
+
+Vancouver, BC,    Canada  49.2827,  -123.1207 
+
+Halifax, NS,      Canada	44.651070	-63.582687
+
+Yellowknife, NT,  Canada	62.453972	-114.371788
+
+Edmonton, AB,     Canada	53.631611	-113.323975
+
+```
+trending = get_trends('canada')
+
+trending %>% 
+  select(trend, place, promoted_content, tweet_volume) %>% 
+  arrange( desc(tweet_volume))
+
+get_city_trend = get_trends(lat = 49.28,  # vancouver
+                            lng = -123.12)
+get_city_trend
+```
+
+Trending tweets in Vancouver (on the day and hour of data collection)
+```{r Vancouver-trends}
+get_city_trend = read_twitter_csv("../TwitterData/Vancouver_TwitterTrends.csv")
+get_city_trend
+
+```
+
+
+
+## Twitter List members 
+*Returns users on a given list, memberships with given user*
+
+- a `slug` is account name associated with a list, this is an option for function call
+- `list_id` is a numeric value
+- `owner_user` is the account that created/ owns a list
+- query max limit is 4000 and is the default
+
+Twitter account `rstats` List created by "@owenlhjphillips"
+```
+membersList = lists_members(
+  list_id = "1409633111298641923", 
+  # slug = 'rstats',  # optional
+  owner_user = "owenlhjphillips", 
+  parse = T,
+  n= 4000 
+)
+
+membersList %>% 
+  select(name, 
+        screen_name, 
+        location, 
+        followers_count) %>%
+  view()
+  
+# ---- returns large list of rstats members (from docs) ----
+# Note: owner_user has changed from above
+
+rstats <- lists_members(slug = "rstats", 
+                        owner_user = "scultrera")
+rstats %>% 
+  select(name, screen_name, followers_count, friends_count)
+```
+rstats list members
+```{r members-list}
+
+membersList = read_twitter_csv("../TwitterData/Twitter_MembersList.csv")
+membersList
+```
+
+
+
+### Twitter user Lists of memberships
+*Returns the lists a Twitter user is a member of*
+
+```
+usr_memberships = lists_memberships(
+  user = "CedScherer",
+  n=200,
+  parse = T
+)
+
+usr_memberships %>% 
+  select(name, full_name) %>% view()
+
+
+# -------- Nate Silver {fivethirtyeight} -------
+# Twitter lists that include Nate Silver
+
+nate_silver_lists = lists_memberships(
+  user = "NateSilver538",
+  n= 1000
+)
+
+head(nate_silver_lists) 
+
+nate_silver_lists %>% 
+  select(name, member_count, full_name)
+```
+
+Nate Silver memberships to various Lists
+```{r member-lists}
+nate_silver_lists = read_twitter_csv("../TwitterData/NateSilver_Lists.csv")
+nate_silver_lists
+
+```
+
+
+### Timeline Tweets by User of a List 
+*Returns a timeline of tweets of a list by user*
+
+- `include_rts` (optional) takes TRUE or FALSE for including retweets
+- `parse` is by default set to TRUE
+- `since_id` (optional) argument available which is for returning older tweets and is subject
+rate limits
+- `max_id` (optional) returns tweets that is older or equal to the specified ID
+
+```
+usr_list_timeline = lists_statuses(
+  slug = "rstats", 
+  owner_user = "scultrera",
+  n= 200,
+  parse = T,
+  include_rts = FALSE
+)
+
+usr_list_timeline %>% view()
+```
+
+User list timeline
+```{r user-list-timeline}
+usr_list_timeline = read_twitter_csv("../TwitterData/usr_list_timeline.csv")
+usr_list_timeline
+
+```
+
+
+### Twitter List Subscribers
+*Returns subscribers of a Twitter list specified*
+
+This example uses New York Times politics list subscribers
+```
+NYT_subs = lists_subscribers(
+  slug = "new-york-times-politics",
+  owner_user = "nytpolitics",
+  n= 1000
+)
+
+NYT_subs %>% head()
+```
+
+New York Times politics Twitter List subscribers
+```{r NYT-subs}
+
+NYT_subs = read_twitter_csv("../TwitterData/NYTimes_Subscribers.csv")
+NYT_subs
+```
+
+### Twitter List Subscriptions by User
+*Returns a list ofa user's subscriptions*
+
+- `user` is `user_id` or `screen_name`
+- n has maximum of 1000
+
+```
+usr_List_Subs = lists_subscriptions(
+  user = "annapurani93",
+  n= 400,
+  parse= T
+)
+
+usr_List_Subs %>% view()
+```
+
+
+
+
+## Search for Tweets by User
+*Returns up to 90,000 statuses (tweets)*
+
+- grab tweets by ``status_id`` or ``screen_name`` 
+- tweets must be <= 90,000
+- **MUST AVOID RATE LIMITS WHILE ITERATING** every 15 min when grabbing >90,000 tweets
+- use ``next_cursor()`` to wait & scrape tweets every 15 min (p.46 in rtweet docs pdf)
+
+**Note**:
+It is important to **hold onto these** `status_id` numbers, as it is one sure way to
+retrieve old tweets without getting premium Twitter API involved which is required for older tweets.
+
+This code is from the documentation, shows how that using a status_id can fetch old tweets
+```
+statuses <- c(
+  "567053242429734913", # Andrew Malcolm   2015-02-15 
+  "266031293945503744", # Barack Obama     2012-11-07
+  "440322224407314432"  # Ellen DeGeneres  2014-03-03
+)
+tweet_statuses = lookup_statuses(statuses)
+
+tweet_statuses %>% 
+  select(status_id, name, screen_name, user_id, created_at, text)
+```
+
+Search multiple users using a vector
+```
+twitter_names = c("ChaseTMAnderson",'er13_r', 'JennyBryan','juliasilge')
+
+twitter_users_search = lookup_users(
+  users = twitter_names,
+  parse = T
+)
+```
+```{r twitter-user-search}
+
+twitter_users_search = read_twitter_csv("../TwitterData/Twitter_users_search.csv")
+twitter_users_search
+```
+
+
+
+
+
+## Tidy Twitter Tweets
+
+clean up tweets into plain text
+- Data reformatted with ascii encoding and normal ampersands and line breaks,fancy spaces/tabs, fancy apostrophes
+- url remain in tweet texts
+
+Using `searched_tweets` variable which is the  dataframe of 3970 rows for Star Wars Lego tweet searches. This file is named `StarWarsLego_searchedTweets`
+
+```
+LegoStarWarsText = searched_tweets$text
+
+cleanedLegoText = plain_tweets(LegoStarWarsText)
+cleanedLegoText
+
+```
+
+
+
+
+## Post Direct Message on Twitter
+*Posts a message to specified user in Messages*
+
+- use `screen_name` or `user_id` for targetted message
+
+Send a message from RStudio to a user !
+
+- Note: using a variable name still runs the function, but this allows for you to see all the information regarding direct messages on Twitter
+
+```
+# ===== post a direct message to user
+DM_message = post_message(
+  "Hi from RStudio {rtweet} message #1",
+  user = "StarTrek_Lt",
+  media = NULL
+)
+```
+
+
+## Post a Tweet
+*Posts a tweet to a Twitter user*
+
+Tweet from RStudio ! 
+
+- `status` (tweet) must be < 280 characters
+- `media` is the file path for a image or video to be included in tweet
+- `destroy_id` is used to delete a tweet, you need to provide a single `status_id` integer value
+
+```
+post_tweet(
+  status = "my 1st {rtweet} #rstats from Rstudio",
+  media = NULL,
+  token = NULL,
+  in_reply_to_status_id = NULL,
+  destroy_id = NULL,
+  retweet_id = NULL,
+  auto_populate_reply_metadata = FALSE
+)
+```
+
+You can post your #TidyTuesday plots from your RStudio or any generated plots.
+This is an example from the documentation.
+```
+##---------- generate data to make/save plot (as a .png file)
+x <- rnorm(300)
+y <- x + rnorm(300, 0, .75)
+col <- c(rep("#002244aa", 50), rep("#440000aa", 50))
+bg <- c(rep("#6699ffaa", 50), rep("#dd6666aa", 50))
+
+##--------- crate temporary file name
+tmp <- tempfile(fileext = ".png")
+
+##-------- save as png
+png(tmp, 6, 6, "in", res = 127.5)
+par(tcl = -.15, family = "Inconsolata",
+    font.main = 2, bty = "n", xaxt = "l", yaxt = "l",
+    bg = "#f0f0f0", mar = c(3, 3, 2, 1.5))
+plot(x, y, xlab = NULL, ylab = NULL, pch = 21, cex = 1,
+     bg = bg, col = col,
+     main = "This image was uploaded by rtweet")
+grid(8, lwd = .15, lty = 2, col = "#00000088")
+dev.off()
+
+##------- post tweet with media attachment
+post_tweet("a tweet with media attachment {rtweet}", media = tmp)
+```
+
+
+
+### Post a Tweet to a Thread
+*Returns up to 3200 tweets posted to a timeline by 1 or more Twitter users*
+
+- `user` or `user_id` can be used 
+- the `parse` argument is meant to save you anger and frustration when using this data, be kind to yourself and always set it to TRUE, as it returns a parsed dataframe
+```
+##------ lookup status_id for my own timeline
+my_timeline <- get_timeline(rtweet:::home_user()) 
+my_timeline
+
+##------ ID for reply, slice the first one (latest tweet) to get status_id integer
+reply_id <- my_timeline$status_id[1] 
+reply_id
+
+##------ post reply
+post_tweet("second in the thread {rtweet}",
+           in_reply_to_status_id = reply_id)
+```
+
+
+
+## Twitter API Rate Limits
+*Returns the data for all Twitter API function calls*
+
+It is important to know your rate limits when calling functions, it is very important to avoid rate limiting. 
+
+The tibble that gets returned includes a time stamp of when you last ran a specific function call and shows when you are safe to call it again.
+
+```
+#--- returns a full list of functions and their rate limits
+Rate_Limit =  rate_limit()
+
+#--- get rate limit info for specific token (function)
+token <- get_tokens()
+
+rate_limit(token)
+
+rate_limit(token, "search_tweets")
+```
+
+
+
+## Collect Live Stream Twitter data
+*Returns Twitter data on query specified for duration set in function call*
+
+Returns public tweets, with 4 methods:
+
+1 - small random sample of tweets available
+2 - filtering using search query (<= 400 keywords)
+3 - tracking vector of user ids (<= 5000 user_ids)
+4 - geolocation coordinates 
+
+This function can be used for trends, grab users data.
+
+*Note*: 
+
+  - the `timeout` function can be set to higher values
+  - the folder generated by rtweets will have a integer string in the name, where it stores the JSON file. Moving a copy to current working directory makes for use of file easier.
+  
+This data stream collection is on the Trend #ADayOffTwitch which was a protest against online hate and harassment
+
+```
+Twitter_LiveStream = stream_tweets2(
+  "ADayOffTwitch",
+  timeout= 90, # 30 sec is default
+  parse=T,
+  verbose=T,
+  file_name="TwitterLiveTweets",
+  append = T  
+  # default is FALSE which overwrites pre-existing data
+)
+
+Twitter_LiveStream = parse_stream('TwitterLiveTweets.json')
+
+twitch_tweet_users = users_data(Twitter_LiveStream)
+twitch_tweet_users %>% view()
+
+# time series plot of tweets based on seconds
+ts_plot(Twitter_LiveStream,"secs")
+```
+
+Twitch Live Stream tweets
+```{r twitch-livestream}
+Twitter_LiveStream = read_twitter_csv("../TwitterData/Twitch_LiveStream_Tweets.csv")
+Twitter_LiveStream
+
+```
+
+
+
+
+
+## Time Series Data
+*Returns data containing frequency of tweets over time interval*
+
+- `data` is the dataframe or grouped dataframes
+- `by=` can be numerical `secs`,`mins`,`hours`,`days`,`weeks` or `years`. The default is in seconds
+- `trim` is number of rows to trim off the font and end of time series
+- `tz` is timezone, and the default is UTC
+
+```
+timeSeries_df =  ts_data(dataSci_tweets,
+                         by="days",
+                         trim = 1,
+                         tz="America/Edmonton")
+timeSeries_df
+
+
+#--- twitter names of female scientists
+fem_sci = c('KHayhoe','ayanaeliza','DrKWilkinson','queenofpeat')
+
+#--- use vector of users to get timelines
+fem_sci_timelines = get_timeline(fem_sci, n= 3000)
+fem_sci_timelines
+
+#--- time series for tweets
+femSci_timeSeries_df = ts_data(fem_sci_timelines)
+femSci_timeSeries_df
+
+# -- weekly intervals
+femSci_tweets_Byweeks = ts_data(femSci_timeSeries_df, by="weeks")
+femSci_tweets_Byweeks
+
+# -- group by screen name and use weekly intervals
+fem_sci_timelines %>% 
+  group_by(screen_name) %>% 
+  ts_plot("weeks")
+```
+
+Female Scientists timelines
+```{r fem-dataSci-timelines}
+
+fem_sci_timelines = read_twitter_csv("../TwitterData/Female_DataSci_Timelines.csv")
+fem_sci_timelines
+```
+
+
+group by screen name and use weekly intervals
+```{r weekly-intervals, message=TRUE, warning=FALSE}
+
+fem_sci_timelines %>% 
+  group_by(screen_name) %>% 
+  ts_plot("weeks")
+
+```
+
+
+## Time Series Plot
+*Returns a ggplot2 time interval plot based on Twitter data*
+
+- `by=`=  `secs`, `mins`,`hours`,`days`,`months`,`years`. The default is in seconds when integer is given
+
+```
+#--------- search for the #ClimateEmergency 
+# ClimateEmerg = search_tweets2(
+#   "ClimateEmergency",
+#   n= 10000
+# )
+
+ClimateEmerg %>% head()
+
+ClimateEmerg %>% head()
+
+ClimateEmerg_freq = ts_plot(ClimateEmerg, by="mins")
+ClimateEmerg_freq
+
+ClimateEmerg %>% 
+  group_by(is_retweet) %>% 
+  ts_plot("hours")
+```
+
+```{r climate-emerg}
+
+ClimateEmerg = read_twitter_csv("../TwitterData/ClimateEmergency_hashtag.csv")
+ClimateEmerg
+```
+
+Compare tweets by retweet or not
+```{r}
+
+ClimateEmerg %>% 
+  group_by(is_retweet) %>% 
+  ts_plot("hours")
+```
+
+
+
+## Extract Twitter Users from Search
+*Extract tweets from users data object (parsed data)*
+
+use of `tweets_data` to return a dataframe
+```
+ClimateEmerg_users =  tweets_data(users = ClimateEmerg )
+ClimateEmerg_users
+```
+```{r climate-emerg-users}
+
+ClimateEmerg_users = read_twitter_csv("../TwitterData/ClimateEmergency_users.csv")
+ClimateEmerg_users
+```
+
+### Tweets and Users in Dataframe
+*parsing data into dataframes/ tibbles*
+```
+tweets.and.users=  tweets_with_users(ClimateEmerg)
+tweets.and.users
+
+users.with.tweets = users_with_tweets(Twitter_LiveStream)
+users.with.tweets
+```
+
+ClimateEmergency tweets and users
+```{r climate-tweets-users}
+tweets.and.users = read_twitter_csv("../TwitterData/ClimateEmerg_Tweets-Users.csv")
+tweets.and.users
+
+```
+
+Twitch Live Stream tweets and users
+```{r twitch-livestream-users}
+tweets.and.users = read_twitter_csv("../TwitterData/Twitch_Tweets-Users.csv")
+tweets.and.users
+
+```
+
+
+
+
+
+
+
+
+
+## End of tutorial
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Quiz
+
+*Quiz on the rtweet functions covered*
+
+```{r quiz}
+quiz(
+  
+  question("Are rate limits important when running rtweet functions ?",
+    answer("No"),
+    answer("Sometimes"),
+    answer("Yes", correct = TRUE),
+    answer("Not Applicable, I am rich")
+  ),
+  question("Which of these listed below are used to create plots ?",
+    answer("ggplot2", correct = TRUE),
+    answer("rplot"),
+    answer("ggTweet"),
+    answer("ts_plot", correct = TRUE)
+  ),
+    question("How do you search for a tweet ?",
+    answer("twitter_friendship()"),
+    answer("rwteet_search()"),
+    answer("search_friendship()"),
+    answer("lookup_friendships()", correct = TRUE)
+  ),
+    question("How do you extract a user's followers ?",
+    answer("twitter_follower()"),
+    answer("get_followers()",correct = TRUE),
+    answer("got_followers()"),
+    answer("lookup_followers()" )
+  ),
+    question("How do you get tweets that are trending ?",
+    answer("get_trends()",correct = TRUE),
+    answer("get_trending()"),
+    answer("twitter_trends()"),
+    answer("lookup_trends()" )
+  )
+  
+)
+```
+
