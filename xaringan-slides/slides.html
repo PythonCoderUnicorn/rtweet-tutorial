@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>rtweet tutorial</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="🌈 Zane Dax (She/They) 🌈" />
+    <meta name="date" content="2022-01-04" />
+    <script src="libs/header-attrs/header-attrs.js"></script>
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/rladies.css" rel="stylesheet" />
+    <link href="libs/remark-css/rladies-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# rtweet tutorial
+## <br/>with RLadies
+### 🌈 Zane Dax (She/They) 🌈
+### 2022-01-04
+
+---
+
+
+
+
+
+
+
+
+
+class: inverse,center
+background-image: url("slides_files/RLadies\ bg.png")
+# rtweet
+
+![rladies](slides_files/rtweet_R_logo 2.png)
+
+
+
+
+
+
+
+---
+class: inverse, center, middle
+
+# Get Started
+
+---
+
+
+
+
+
+# rtweet library
+
+Install the **rtweet** package from [Github](https://github.com/ropensci/rtweet):
+
+
+```r
+install.packages("rtweet")
+
+library(rtweet)
+```
+
+--
+
+You are required to have a Twitter API access key in order to 
+use the library.
+
+- A user *must* authenticate their interaction with Twitter's API. If 
+you already have an access token key, then a browser popup will 
+appear where you need to click on permissions and verification.
+
+--
+
+- Once you have this set up you are ready to go
+
+--
+
+.footnote[
+[1] my documentation is based on using a MacOS version 12.1
+
+[2] See Twitter API documentation for full details and explanations
+]
+
+
+
+---
+class: inverse, middle, center
+
+# Data Mine the hashtags
+
+---
+
+
+
+# Hello Twitter Data
+
+You will require a few more libraries to follow along with the slides:
+
+
+```r
+library(rtweet)
+library(tidyverse)
+library(ggplot2)
+library(tidytext)
+library(igraph)
+library(ggraph)
+library(showtext)
+library(widyr)
+library(tidyr)
+```
+
+- `ggplot` is for data visualization 
+- `tidytext` is for text analysis
+- `ggraph` is for graphing the word frequencies together
+- `showtext` is to change the font style (not required but suggested)
+
+
+---
+
+
+
+
+# Find a #hashtag
+
+You can see a trending hashtag on Twitter or use a word to get tweets on that specific hashtag. For this example we will use #DragRace. The rate limit is 
+18,000 tweets per API call. We are not interested in retweets for this hashtag and 
+set the function to false. Language settings are set to return English tweets only.
+
+
+```r
+# search Twitter for all tweets with #DragRace 
+
+DragRace_tweets = search_tweets2(
+  "#DragRace",
+  n= 18000,
+  lang="en",
+  include_rts=F
+)
+```
+
+
+It is **strongly advised** you make use of variable names for your Twitter data as to avoid `rate limit` (getting timed-out or Twitter account suspended)
+
+
+
+
+
+
+
+---
+
+# #DragRace
+
+The Twitter API returns lots of information.
+
+```r
+head(DragRace_tweets)
+```
+
+```
+## # A tibble: 6 × 91
+##   user_id             status_id  created_at          screen_name text     source
+##   &lt;chr&gt;               &lt;chr&gt;      &lt;dttm&gt;              &lt;chr&gt;       &lt;chr&gt;    &lt;chr&gt; 
+## 1 711670824           147840494… 2022-01-04 16:36:20 glennkiki   #MAFS a… Twitt…
+## 2 907034589759229952  147840397… 2022-01-04 16:32:29 tfcpod      Are ya’… Twitt…
+## 3 907034589759229952  147626971… 2021-12-29 19:11:41 tfcpod      Have yo… Twitt…
+## 4 907034589759229952  147772465… 2022-01-02 19:33:07 tfcpod      Which #… Twitt…
+## 5 736971752           147840268… 2022-01-04 16:27:21 JordanFaso  so happ… Twitt…
+## 6 1323317770465935360 147588777… 2021-12-28 17:54:00 ObsessedIN… A momen… Sprou…
+## # … with 85 more variables: display_text_width &lt;dbl&gt;, reply_to_status_id &lt;chr&gt;,
+## #   reply_to_user_id &lt;chr&gt;, reply_to_screen_name &lt;chr&gt;, is_quote &lt;lgl&gt;,
+## #   is_retweet &lt;lgl&gt;, favorite_count &lt;int&gt;, retweet_count &lt;int&gt;,
+## #   quote_count &lt;int&gt;, reply_count &lt;int&gt;, hashtags &lt;list&gt;, symbols &lt;list&gt;,
+## #   urls_url &lt;list&gt;, urls_t.co &lt;list&gt;, urls_expanded_url &lt;list&gt;,
+## #   media_url &lt;list&gt;, media_t.co &lt;list&gt;, media_expanded_url &lt;list&gt;,
+## #   media_type &lt;list&gt;, ext_media_url &lt;list&gt;, ext_media_t.co &lt;list&gt;, …
+```
+
+There are 92 columns for the Twitter data
+
+
+---
+
+
+
+# just the text - 1
+
+The Twitter data we have is messy and has url links, need to remove them.
+
+```r
+# ======== remove URLs
+DragRace_tweets$stripped_text = gsub("http.*","", DragRace_tweets$text)
+DragRace_tweets$stripped_text = gsub("https*","", DragRace_tweets$stripped_text)
+
+head(DragRace_tweets$stripped_text)
+```
+
+```
+## [1] "#MAFS and #DragRace are back this week 😎 "                                                                                                                     
+## [2] "Are ya’ll ready to roll the dice a cook the rice? Is this #DragRace way of telling us Santino Rice is back this season?"                                        
+## [3] "Have you listened to our podcast #DragRace fans? Take a listen as we put on our own drag show for you! "                                                        
+## [4] "Which #DragRace franchise are you most looking forward to in 2022? For me, I would say UK vs The World."                                                        
+## [5] "so happy to be starting #DragRace fridays again"                                                                                                                
+## [6] "A moment from #2021 that we're #ObsessedWith is @xoSonique giving us life advice! #PinkTableTalk #Therapy #Mantra #DragRaceAllStars #DragRace #RuPaulsDragRace "
+```
+
+---
+# just the text - 2
+
+This code **tokenizes** the words to allow for easy word counts and further text analysis. 
+
+
+```r
+# ===== tidytext::unnest_tokens()
+clean_DragRace_tweets = DragRace_tweets %&gt;% 
+  select(stripped_text) %&gt;% 
+  unnest_tokens(word, stripped_text) # tokens
+
+head(clean_DragRace_tweets, 10)
+```
+
+```
+## # A tibble: 10 × 1
+##    word    
+##    &lt;chr&gt;   
+##  1 mafs    
+##  2 and     
+##  3 dragrace
+##  4 are     
+##  5 back    
+##  6 this    
+##  7 week    
+##  8 are     
+##  9 ya’ll   
+## 10 ready
+```
+
+
+
+
+---
+# Tweet Word Counts - 1
+
+Top 10 words, counted and sorted 
+
+
+```r
+# == plot, word counts of clean text  (stopwords included)
+clean_DragRace_tweets %&gt;% 
+  count(word, sort= T) %&gt;% 
+  top_n(10) %&gt;% 
+  mutate(word= reorder(word, n))
+```
+
+```
+## Selecting by n
+```
+
+```
+## # A tibble: 10 × 2
+##    word                n
+##    &lt;fct&gt;           &lt;int&gt;
+##  1 dragrace          855
+##  2 the               514
+##  3 of                335
+##  4 i                 293
+##  5 to                288
+##  6 a                 256
+##  7 and               242
+##  8 is                200
+##  9 season            186
+## 10 rupaulsdragrace   183
+```
+---
+
+
+
+
+--- 
+# Tweet Word Counts - 1.1
+
+![](slides_files/figure-html/unnamed-chunk-8-1.png)&lt;!-- --&gt;
+
+
+---
+# Tweet Word Counts - 1.2
+
+
+```r
+# ========== tidytext stop_words + anti_join
+clean_DragRace_words = clean_DragRace_tweets %&gt;% 
+  anti_join(stop_words)
+
+clean_DragRace_words %&gt;% 
+  count(word, sort= T) %&gt;% 
+  top_n(10) %&gt;%
+  filter(word &gt; 10)
+```
+
+```
+## # A tibble: 10 × 2
+##    word                n
+##    &lt;chr&gt;           &lt;int&gt;
+##  1 dragrace          855
+##  2 season            186
+##  3 rupaulsdragrace   183
+##  4 drag              144
+##  5 race               73
+##  6 amp                69
+##  7 14                 63
+##  8 rupaul             63
+##  9 dragraceuk         49
+## 10 queens             46
+```
+
+
+---
+# Tweet Word Counts - 1.3
+![](slides_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
+
+
+
+
+---
+
+# bigram and n-grams
+
+
+```r
+# ============= NETWORK OF WORDS !
+library(widyr)
+
+# bigrams. n-grams
+DragRace_tweets_paired_words = DragRace_tweets %&gt;% 
+  select(stripped_text) %&gt;% 
+  unnest_tokens(paired_words, 
+                stripped_text, 
+                token="ngrams",
+                n= 2)
+
+DragRace_tweets_paired_words %&gt;% 
+  count(paired_words, sort = T) %&gt;% 
+  top_n(5)
+```
+
+```
+## # A tibble: 5 × 2
+##   paired_words                 n
+##   &lt;chr&gt;                    &lt;int&gt;
+## 1 drag race                   68
+## 2 of the                      63
+## 3 of dragrace                 62
+## 4 season 14                   58
+## 5 dragrace rupaulsdragrace    38
+```
+
+
+
+
+
+---
+
+# word pair splitting
+
+we now split the bigrams into n-gram
+
+```r
+# ======== word pair splitting
+library(tidyr)
+
+DragRace_tweets_word_splits = DragRace_tweets_paired_words %&gt;% 
+  separate(paired_words, c('word1','word2'), sep = " ")
+
+DragRace_tweets_filtered &lt;- DragRace_tweets_word_splits %&gt;%
+  filter(!word1 %in% stop_words$word) %&gt;%
+  filter(!word2 %in% stop_words$word)
+
+# new bigram counts:
+DragRace_tweets_words_counts &lt;- DragRace_tweets_filtered %&gt;%
+  count(word1, word2, sort = TRUE)
+
+head(DragRace_tweets_words_counts)
+```
+
+```
+## # A tibble: 6 × 3
+##   word1           word2               n
+##   &lt;chr&gt;           &lt;chr&gt;           &lt;int&gt;
+## 1 drag            race               68
+## 2 season          14                 58
+## 3 dragrace        rupaulsdragrace    38
+## 4 rupaulsdragrace dragrace           30
+## 5 dragrace        season             27
+## 6 dragrace        s14                26
+```
+
+
+---
+
+# Graph the words
+
+Now that we have the n-grams and counted, we can graph them to see what words are associated together.
+
+
+graph of word network
+```
+DragRace_tweets_words_counts %&gt;% 
+  filter(n &gt;= 10) %&gt;% 
+  ggraph(layout = "fr")
+```
+
+---
+![](slides_files/figure-html/unnamed-chunk-13-1.png)&lt;!-- --&gt;
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
