@@ -4,11 +4,20 @@
     <title>rtweet tutorial</title>
     <meta charset="utf-8" />
     <meta name="author" content="🌈 Zane Dax (She/They) 🌈" />
-    <meta name="date" content="2022-01-04" />
+    <meta name="date" content="2022-01-08" />
     <script src="libs/header-attrs/header-attrs.js"></script>
     <link href="libs/remark-css/default.css" rel="stylesheet" />
     <link href="libs/remark-css/rladies.css" rel="stylesheet" />
     <link href="libs/remark-css/rladies-fonts.css" rel="stylesheet" />
+    <script src="libs/htmlwidgets/htmlwidgets.js"></script>
+    <link href="libs/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+    <script src="libs/datatables-binding/datatables.js"></script>
+    <script src="libs/jquery/jquery-3.6.0.min.js"></script>
+    <link href="libs/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+    <link href="libs/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+    <script src="libs/dt-core/js/jquery.dataTables.min.js"></script>
+    <link href="libs/crosstalk/css/crosstalk.min.css" rel="stylesheet" />
+    <script src="libs/crosstalk/js/crosstalk.min.js"></script>
   </head>
   <body>
     <textarea id="source">
@@ -17,7 +26,7 @@ class: center, middle, inverse, title-slide
 # rtweet tutorial
 ## <br/>with RLadies
 ### 🌈 Zane Dax (She/They) 🌈
-### 2022-01-04
+### 2022-01-08
 
 ---
 
@@ -60,6 +69,7 @@ Install the **rtweet** package from [Github](https://github.com/ropensci/rtweet)
 ```r
 install.packages("rtweet")
 
+library(knitr)
 library(rtweet)
 ```
 
@@ -110,6 +120,7 @@ library(ggraph)
 library(showtext)
 library(widyr)
 library(tidyr)
+library(DT)
 ```
 
 - `ggplot` is for data visualization 
@@ -129,10 +140,9 @@ You can see a trending hashtag on Twitter or use a word to get tweets on that sp
 18,000 tweets per API call. We are not interested in retweets for this hashtag and 
 set the function to false. Language settings are set to return English tweets only.
 
+**search Twitter for all tweets with #DragRace**
 
-```r
-# search Twitter for all tweets with #DragRace 
-
+```
 DragRace_tweets = search_tweets2(
   "#DragRace",
   n= 18000,
@@ -141,51 +151,52 @@ DragRace_tweets = search_tweets2(
 )
 ```
 
-
 It is **strongly advised** you make use of variable names for your Twitter data as to avoid `rate limit` (getting timed-out or Twitter account suspended)
 
+```
+DragRace_tweets = write_as_csv(
+  DragRace_tweets,
+  file_name = "DragRace_tweets",
+  prepend_ids = T,
+  na="",
+  fileEncoding = "UTF-8"
+)
+```
 
+
+---
+# read in saved data
+
+
+```r
+DragRace_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , unflatten = FALSE)
+```
 
 
 
 
 
 ---
-
 # #DragRace
 
-The Twitter API returns lots of information.
+**The Twitter API returns lots of meta-data information.**
 
-```r
-head(DragRace_tweets)
-```
+this is `head(DragRace_tweets$text)`
 
-```
-## # A tibble: 6 × 91
-##   user_id             status_id  created_at          screen_name text     source
-##   &lt;chr&gt;               &lt;chr&gt;      &lt;dttm&gt;              &lt;chr&gt;       &lt;chr&gt;    &lt;chr&gt; 
-## 1 711670824           147840494… 2022-01-04 16:36:20 glennkiki   #MAFS a… Twitt…
-## 2 907034589759229952  147840397… 2022-01-04 16:32:29 tfcpod      Are ya’… Twitt…
-## 3 907034589759229952  147626971… 2021-12-29 19:11:41 tfcpod      Have yo… Twitt…
-## 4 907034589759229952  147772465… 2022-01-02 19:33:07 tfcpod      Which #… Twitt…
-## 5 736971752           147840268… 2022-01-04 16:27:21 JordanFaso  so happ… Twitt…
-## 6 1323317770465935360 147588777… 2021-12-28 17:54:00 ObsessedIN… A momen… Sprou…
-## # … with 85 more variables: display_text_width &lt;dbl&gt;, reply_to_status_id &lt;chr&gt;,
-## #   reply_to_user_id &lt;chr&gt;, reply_to_screen_name &lt;chr&gt;, is_quote &lt;lgl&gt;,
-## #   is_retweet &lt;lgl&gt;, favorite_count &lt;int&gt;, retweet_count &lt;int&gt;,
-## #   quote_count &lt;int&gt;, reply_count &lt;int&gt;, hashtags &lt;list&gt;, symbols &lt;list&gt;,
-## #   urls_url &lt;list&gt;, urls_t.co &lt;list&gt;, urls_expanded_url &lt;list&gt;,
-## #   media_url &lt;list&gt;, media_t.co &lt;list&gt;, media_expanded_url &lt;list&gt;,
-## #   media_type &lt;list&gt;, ext_media_url &lt;list&gt;, ext_media_t.co &lt;list&gt;, …
-```
+
+[1] "So to watch #DragRace #DragRaceS14 in the UK I’ve got to pay for yet another streaming service?!     \n\nNope. Pity though, was looking forward to it. 😒"
+[2] "if ru says willow’s name like that the whole season i think my entire skin will crawl off #DragRace"                                              
+[3] "June and Orion are going to lip-sync foooooor theeeeeir liiiiiiiiiiives #DragRace"                                                                 
+[4] "Watching season 14 premiere of #DragRace https://t.co/1iaHPzPj7L"     
+[5] "Bosco... Thanks for that ending! #DragRace"                          
+[6] "There's more depth to Willow Pill than her looks suggest, I like it #DragRace"  
+
+
 
 There are 92 columns for the Twitter data
 
 
 ---
-
-
-
 # just the text - 1
 
 The Twitter data we have is messy and has url links, need to remove them.
@@ -194,17 +205,20 @@ The Twitter data we have is messy and has url links, need to remove them.
 # ======== remove URLs
 DragRace_tweets$stripped_text = gsub("http.*","", DragRace_tweets$text)
 DragRace_tweets$stripped_text = gsub("https*","", DragRace_tweets$stripped_text)
+```
 
+
+```r
 head(DragRace_tweets$stripped_text)
 ```
 
 ```
-## [1] "#MAFS and #DragRace are back this week 😎 "                                                                                                                     
-## [2] "Are ya’ll ready to roll the dice a cook the rice? Is this #DragRace way of telling us Santino Rice is back this season?"                                        
-## [3] "Have you listened to our podcast #DragRace fans? Take a listen as we put on our own drag show for you! "                                                        
-## [4] "Which #DragRace franchise are you most looking forward to in 2022? For me, I would say UK vs The World."                                                        
-## [5] "so happy to be starting #DragRace fridays again"                                                                                                                
-## [6] "A moment from #2021 that we're #ObsessedWith is @xoSonique giving us life advice! #PinkTableTalk #Therapy #Mantra #DragRaceAllStars #DragRace #RuPaulsDragRace "
+## [1] "So to watch #DragRace #DragRaceS14 in the UK I’ve got to pay for yet another streaming service?!     \n\nNope. Pity though, was looking forward to it. 😒"
+## [2] "if ru says willow’s name like that the whole season i think my entire skin will crawl off #DragRace"                                                      
+## [3] "June and Orion are going to lip-sync foooooor theeeeeir liiiiiiiiiiives #DragRace"                                                                        
+## [4] "Watching season 14 premiere of #DragRace "                                                                                                                
+## [5] "Bosco... Thanks for that ending! #DragRace"                                                                                                               
+## [6] "There's more depth to Willow Pill than her looks suggest, I like it #DragRace"
 ```
 
 ---
@@ -218,25 +232,18 @@ This code **tokenizes** the words to allow for easy word counts and further text
 clean_DragRace_tweets = DragRace_tweets %&gt;% 
   select(stripped_text) %&gt;% 
   unnest_tokens(word, stripped_text) # tokens
-
-head(clean_DragRace_tweets, 10)
 ```
 
+---
+
+
+```r
+# head(clean_DragRace_tweets, 10)
+datatable(head(clean_DragRace_tweets, 10), editable = 'cell')
 ```
-## # A tibble: 10 × 1
-##    word    
-##    &lt;chr&gt;   
-##  1 mafs    
-##  2 and     
-##  3 dragrace
-##  4 are     
-##  5 back    
-##  6 this    
-##  7 week    
-##  8 are     
-##  9 ya’ll   
-## 10 ready
-```
+
+<div id="htmlwidget-459fe99be336c3f2e10d" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-459fe99be336c3f2e10d">{"x":{"filter":"none","vertical":false,"editable":{"target":"cell","disable":{"columns":null},"numeric":[],"area":[]},"data":[["1","2","3","4","5","6","7","8","9","10"],["so","to","watch","dragrace","dragraces14","in","the","uk","i’ve","got"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>word<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"order":[],"autoWidth":false,"orderClasses":false,"columnDefs":[{"orderable":false,"targets":0}]}},"evals":[],"jsHooks":[]}</script>
 
 
 
@@ -261,19 +268,37 @@ clean_DragRace_tweets %&gt;%
 
 ```
 ## # A tibble: 10 × 2
-##    word                n
-##    &lt;fct&gt;           &lt;int&gt;
-##  1 dragrace          855
-##  2 the               514
-##  3 of                335
-##  4 i                 293
-##  5 to                288
-##  6 a                 256
-##  7 and               242
-##  8 is                200
-##  9 season            186
-## 10 rupaulsdragrace   183
+##    word         n
+##    &lt;fct&gt;    &lt;int&gt;
+##  1 dragrace 12798
+##  2 the       5391
+##  3 i         3544
+##  4 is        2994
+##  5 to        2589
+##  6 a         2573
+##  7 and       2397
+##  8 of        2222
+##  9 this      1869
+## 10 for       1737
 ```
+
+```r
+head(clean_DragRace_tweets)
+```
+
+```
+## # A tibble: 6 × 1
+##   word       
+##   &lt;chr&gt;      
+## 1 so         
+## 2 to         
+## 3 watch      
+## 4 dragrace   
+## 5 dragraces14
+## 6 in
+```
+
+
 ---
 
 
@@ -282,12 +307,15 @@ clean_DragRace_tweets %&gt;%
 --- 
 # Tweet Word Counts - 1.1
 
-![](slides_files/figure-html/unnamed-chunk-8-1.png)&lt;!-- --&gt;
+`stopwords` are included in this plot
+
+![](slides_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
 
 
 ---
 # Tweet Word Counts - 1.2
 
+`stopwords` are removed from the data 
 
 ```r
 # ========== tidytext stop_words + anti_join
@@ -304,22 +332,22 @@ clean_DragRace_words %&gt;%
 ## # A tibble: 10 × 2
 ##    word                n
 ##    &lt;chr&gt;           &lt;int&gt;
-##  1 dragrace          855
-##  2 season            186
-##  3 rupaulsdragrace   183
-##  4 drag              144
-##  5 race               73
-##  6 amp                69
-##  7 14                 63
-##  8 rupaul             63
-##  9 dragraceuk         49
-## 10 queens             46
+##  1 dragrace        12798
+##  2 season           1497
+##  3 willow           1386
+##  4 kornbread        1327
+##  5 rupaulsdragrace   931
+##  6 kerri             834
+##  7 love              798
+##  8 drag              753
+##  9 i’m               741
+## 10 14                595
 ```
 
 
 ---
 # Tweet Word Counts - 1.3
-![](slides_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
+![](slides_files/figure-html/unnamed-chunk-12-1.png)&lt;!-- --&gt;
 
 
 
@@ -347,14 +375,15 @@ DragRace_tweets_paired_words %&gt;%
 ```
 
 ```
-## # A tibble: 5 × 2
-##   paired_words                 n
-##   &lt;chr&gt;                    &lt;int&gt;
-## 1 drag race                   68
-## 2 of the                      63
-## 3 of dragrace                 62
-## 4 season 14                   58
-## 5 dragrace rupaulsdragrace    38
+## # A tibble: 6 × 2
+##   paired_words     n
+##   &lt;chr&gt;        &lt;int&gt;
+## 1 season 14      541
+## 2 willow pill    514
+## 3 i love         411
+## 4 in the         408
+## 5 drag race      393
+## 6 of the         393
 ```
 
 
@@ -389,12 +418,12 @@ head(DragRace_tweets_words_counts)
 ## # A tibble: 6 × 3
 ##   word1           word2               n
 ##   &lt;chr&gt;           &lt;chr&gt;           &lt;int&gt;
-## 1 drag            race               68
-## 2 season          14                 58
-## 3 dragrace        rupaulsdragrace    38
-## 4 rupaulsdragrace dragrace           30
-## 5 dragrace        season             27
-## 6 dragrace        s14                26
+## 1 season          14                541
+## 2 willow          pill              514
+## 3 drag            race              393
+## 4 dragrace        rupaulsdragrace   276
+## 5 kerri           colby             270
+## 6 rupaulsdragrace dragrace          209
 ```
 
 
@@ -413,7 +442,7 @@ DragRace_tweets_words_counts %&gt;%
 ```
 
 ---
-![](slides_files/figure-html/unnamed-chunk-13-1.png)&lt;!-- --&gt;
+![](slides_files/figure-html/unnamed-chunk-15-1.png)&lt;!-- --&gt;
 
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>

@@ -51,9 +51,10 @@ class: inverse, center, middle
 
 Install the **rtweet** package from [Github](https://github.com/ropensci/rtweet):
 
-```{r eval=FALSE, tidy=FALSE}
+```{r eval=FALSE, tidy=FALSE, message=FALSE, warning=FALSE}
 install.packages("rtweet")
 
+library(knitr)
 library(rtweet)
 ```
 
@@ -103,6 +104,7 @@ library(ggraph)
 library(showtext)
 library(widyr)
 library(tidyr)
+library(DT)
 ```
 
 - `ggplot` is for data visualization 
@@ -122,9 +124,9 @@ You can see a trending hashtag on Twitter or use a word to get tweets on that sp
 18,000 tweets per API call. We are not interested in retweets for this hashtag and 
 set the function to false. Language settings are set to return English tweets only.
 
-```{r message=FALSE, warning=FALSE}
-# search Twitter for all tweets with #DragRace 
+**search Twitter for all tweets with #DragRace**
 
+```
 DragRace_tweets = search_tweets2(
   "#DragRace",
   n= 18000,
@@ -133,31 +135,58 @@ DragRace_tweets = search_tweets2(
 )
 ```
 
-
 It is **strongly advised** you make use of variable names for your Twitter data as to avoid `rate limit` (getting timed-out or Twitter account suspended)
 
+```
+DragRace_tweets = write_as_csv(
+  DragRace_tweets,
+  file_name = "DragRace_tweets",
+  prepend_ids = T,
+  na="",
+  fileEncoding = "UTF-8"
+)
+```
 
+
+---
+# read in saved data
+
+```{r}
+DragRace_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , unflatten = FALSE)
+```
 
 
 
 
 
 ---
-
 # #DragRace
 
-The Twitter API returns lots of information.
-```{r}
-head(DragRace_tweets)
+**The Twitter API returns lots of meta-data information.**
+
+this is `head(DragRace_tweets$text)`
+```{r echo=FALSE}
+# head(DragRace_tweets$text)
+# df = head(DragRace_tweets,10)
+# 
+# df %>%
+#   DT::datatable(fillContainer = F, options = list(pageLength=3)) %>%
+#   DT::formatStyle(0, target = "row", lineHeight='20%')
 ```
+
+[1] "So to watch #DragRace #DragRaceS14 in the UK I’ve got to pay for yet another streaming service?!     \n\nNope. Pity though, was looking forward to it. 😒"
+[2] "if ru says willow’s name like that the whole season i think my entire skin will crawl off #DragRace"                                              
+[3] "June and Orion are going to lip-sync foooooor theeeeeir liiiiiiiiiiives #DragRace"                                                                 
+[4] "Watching season 14 premiere of #DragRace https://t.co/1iaHPzPj7L"     
+[5] "Bosco... Thanks for that ending! #DragRace"                          
+[6] "There's more depth to Willow Pill than her looks suggest, I like it #DragRace"  
+
+
 
 There are 92 columns for the Twitter data
 
 
 ---
-
-
-
 # just the text - 1
 
 The Twitter data we have is messy and has url links, need to remove them.
@@ -165,7 +194,9 @@ The Twitter data we have is messy and has url links, need to remove them.
 # ======== remove URLs
 DragRace_tweets$stripped_text = gsub("http.*","", DragRace_tweets$text)
 DragRace_tweets$stripped_text = gsub("https*","", DragRace_tweets$stripped_text)
+```
 
+```{r}
 head(DragRace_tweets$stripped_text)
 
 ```
@@ -180,8 +211,13 @@ This code **tokenizes** the words to allow for easy word counts and further text
 clean_DragRace_tweets = DragRace_tweets %>% 
   select(stripped_text) %>% 
   unnest_tokens(word, stripped_text) # tokens
+```
 
-head(clean_DragRace_tweets, 10)
+---
+
+```{r}
+# head(clean_DragRace_tweets, 10)
+datatable(head(clean_DragRace_tweets, 10), editable = 'cell')
 ```
 
 
@@ -198,7 +234,12 @@ clean_DragRace_tweets %>%
   count(word, sort= T) %>% 
   top_n(10) %>% 
   mutate(word= reorder(word, n))
+
+head(clean_DragRace_tweets)
+
 ```
+
+
 ---
 
 
@@ -206,6 +247,8 @@ clean_DragRace_tweets %>%
 
 --- 
 # Tweet Word Counts - 1.1
+
+`stopwords` are included in this plot
 
 ```{r echo=FALSE, fig.width=10, message=FALSE, warning=FALSE}
 clean_DragRace_tweets %>% 
@@ -220,12 +263,14 @@ clean_DragRace_tweets %>%
        x="unique words",
        y= "Count")+
   theme(text = element_text(family = 'Poppins', size = 12))
+
 ```
 
 
 ---
 # Tweet Word Counts - 1.2
 
+`stopwords` are removed from the data 
 ```{r warning=FALSE, message=FALSE}
 # ========== tidytext stop_words + anti_join
 clean_DragRace_words = clean_DragRace_tweets %>% 
@@ -345,7 +390,7 @@ DragRace_tweets_words_counts %>%
   geom_node_point(color="#e757fa", size=3)+
   geom_node_text( aes(label= name), vjust= 1.8, size= 4)+
   labs(title = "Twitter word network for #DragRace",
-       subtitle = "Text Mining:  N= 824 tweets, word counts >= 10",
+       subtitle = "Text Mining:  N= 13000 tweets, word counts >= 10",
        x="",
        y="",
        caption="@StarTrek_Lt | Jan 3, 2022 | Source: Twitter API | Sample Size: N= 3285 split words")+
