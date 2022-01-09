@@ -393,7 +393,7 @@ DragRace_tweets_words_counts %>%
        subtitle = "Text Mining:  N= 13000 tweets, word counts >= 10",
        x="",
        y="",
-       caption="@StarTrek_Lt | Jan 3, 2022 | Source: Twitter API | Sample Size: N= 3285 split words")+
+       caption="@StarTrek_Lt | Jan 8, 2022 | Source: Twitter API | Sample Size: N= 3285 split words")+
   theme(text = element_text(family = 'Poppins'),
         plot.title = element_text(color = '#e757fa', size = 14),
         plot.caption = element_text(color = 'grey60', hjust = 0, size = 10)
