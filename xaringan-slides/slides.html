@@ -4,20 +4,11 @@
     <title>rtweet tutorial</title>
     <meta charset="utf-8" />
     <meta name="author" content="🌈 Zane Dax (She/They) 🌈" />
-    <meta name="date" content="2022-01-08" />
+    <meta name="date" content="2022-01-10" />
     <script src="libs/header-attrs/header-attrs.js"></script>
     <link href="libs/remark-css/default.css" rel="stylesheet" />
     <link href="libs/remark-css/rladies.css" rel="stylesheet" />
     <link href="libs/remark-css/rladies-fonts.css" rel="stylesheet" />
-    <script src="libs/htmlwidgets/htmlwidgets.js"></script>
-    <link href="libs/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
-    <script src="libs/datatables-binding/datatables.js"></script>
-    <script src="libs/jquery/jquery-3.6.0.min.js"></script>
-    <link href="libs/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
-    <link href="libs/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
-    <script src="libs/dt-core/js/jquery.dataTables.min.js"></script>
-    <link href="libs/crosstalk/css/crosstalk.min.css" rel="stylesheet" />
-    <script src="libs/crosstalk/js/crosstalk.min.js"></script>
   </head>
   <body>
     <textarea id="source">
@@ -26,7 +17,8 @@ class: center, middle, inverse, title-slide
 # rtweet tutorial
 ## <br/>with RLadies
 ### 🌈 Zane Dax (She/They) 🌈
-### 2022-01-08
+### <span class="citation">@StarTrek_Lt</span>
+### 2022-01-10
 
 ---
 
@@ -63,13 +55,11 @@ class: inverse, center, middle
 
 # rtweet library
 
-Install the **rtweet** package from [Github](https://github.com/ropensci/rtweet):
+Install the **rtweet** package from [Github](https://github.com/ropensci/rtweet) or from CRAN:
 
 
 ```r
-install.packages("rtweet")
-
-library(knitr)
+# install.packages("rtweet")
 library(rtweet)
 ```
 
@@ -105,72 +95,97 @@ class: inverse, middle, center
 
 
 
-# Hello Twitter Data
+# Needed libraries
 
-You will require a few more libraries to follow along with the slides:
+You will require a few more libraries to follow along with the slides: 
 
 
 ```r
-library(rtweet)
-library(tidyverse)
-library(ggplot2)
-library(tidytext)
-library(igraph)
-library(ggraph)
-library(showtext)
-library(widyr)
+library(rtweet)     # needed for Twitter API
+library(tidyverse)  # for data manipulation
+library(ggplot2)    # for plotting 
+library(tidytext)   # for text analysis
+library(ggraph)     # graphing words
+library(showtext)   # for font styling
+library(widyr)      # dataframe manipulation
 library(tidyr)
 library(DT)
 ```
 
-- `ggplot` is for data visualization 
-- `tidytext` is for text analysis
-- `ggraph` is for graphing the word frequencies together
-- `showtext` is to change the font style (not required but suggested)
+If you are not interested in graphing the word associations and frequencies, then you just need:
+- rtweet
+- tidyverse
+- ggplot
 
 
 ---
 
+# Step 1 - Find a #hashtag
 
-
-
-# Find a #hashtag
-
-You can see a trending hashtag on Twitter or use a word to get tweets on that specific hashtag. For this example we will use #DragRace. The rate limit is 
-18,000 tweets per API call. We are not interested in retweets for this hashtag and 
-set the function to false. Language settings are set to return English tweets only.
+You can see a trending hashtag on Twitter or use a word / phrase to get tweets on that specific hashtag/ phrase. For this example we will use #DragRace. The rate limit is 
+**max** 18,000 tweets per API call. We are not interested in retweets for this hashtag and set the function to false. Language settings are set to return English tweets only.
+**Note**: You can search tweets &lt;= 9 days ago for free, otherwise you need to pay Twitter to access older tweets.
 
 **search Twitter for all tweets with #DragRace**
 
 ```
+# give your search_tweets() a variable
+
 DragRace_tweets = search_tweets2(
-  "#DragRace",
-  n= 18000,
-  lang="en",
-  include_rts=F
+  "#DragRace",         # hashtag we are interested in
+  n= 18000,            # max amount of tweets in 1 API request
+  lang = "en",         # English
+  include_rts = FALSE  # no retweets
 )
 ```
 
-It is **strongly advised** you make use of variable names for your Twitter data as to avoid `rate limit` (getting timed-out or Twitter account suspended)
+It is **strongly advised** you make use of variable names for your Twitter data as to avoid `rate limit` (getting timed-out for 15 minutes or Twitter Developer account suspended which is the account that has the API key). If you rate_limit too often, there will be the message in the console and you will lose privileges with the Twitter Developer account which makes your API key void.
+---
+
+
+
+--- 
+# Step 2 - Save your search Tweets
+
+This is very important to do as to avoid executing the `search_tweets2()` function again within 15 minutes and seeing a `rate_limit` warning message in the console. Seeing a `rate_limit` warning is scary to see but really means you have to wait at least 15 minutes to try to run the code again. 
+
+To get `rate limit` info for specific token (function call)
+- `token &lt;- get_tokens()`
+- `rate_limit(token)`
+- `rate_limit(token, "search_tweets")`
 
 ```
+#   query         limit remaining reset    reset_at            timestamp           
+# 1 search/tweets   180       180 15.0119… 2021-09-02 09:42:08 2021-09-02 09:27:08 
+```
+
+**SAVE YOUR TWITTER SEARCHES**
+```
 DragRace_tweets = write_as_csv(
-  DragRace_tweets,
-  file_name = "DragRace_tweets",
-  prepend_ids = T,
-  na="",
-  fileEncoding = "UTF-8"
+  DragRace_tweets,               # variable name used
+  file_name = "DragRace_tweets", # new variable name for CSV file
+  prepend_ids = TRUE,            # set to true 
+  na = "",
+  fileEncoding = "UTF-8"         # save file in UTF-8 
 )
 ```
 
 
 ---
-# read in saved data
+# Step 3 - read in saved data
 
 
-```r
-DragRace_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , unflatten = FALSE)
-```
+
+DragRace_tweets = read_twitter_csv(file = "../TwitterData/DragRace_tweets.csv" , 
+  unflatten = FALSE)
+
+`DragRace_tweets` has 13,000 rows (obs.) and 91 columns (variables)
+
+---
+class: inverse, middle, center
+
+# Text Analysis of Tweets
+
 
 
 
@@ -179,7 +194,8 @@ DragRace_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , 
 ---
 # #DragRace
 
-**The Twitter API returns lots of meta-data information.**
+**The Twitter API returns lots of meta-data information.** 
+Only 6 rows of the Tweets dataframe text is shown. This is raw Twitter text data that is messy with `url`s, emojis and `\n` new lines.
 
 this is `head(DragRace_tweets$text)`
 
@@ -193,7 +209,8 @@ this is `head(DragRace_tweets$text)`
 
 
 
-There are 92 columns for the Twitter data
+
+
 
 
 ---
@@ -205,21 +222,22 @@ The Twitter data we have is messy and has url links, need to remove them.
 # ======== remove URLs
 DragRace_tweets$stripped_text = gsub("http.*","", DragRace_tweets$text)
 DragRace_tweets$stripped_text = gsub("https*","", DragRace_tweets$stripped_text)
+
+# head(DragRace_tweets$stripped_text)
 ```
 
+- Note: the dataframe has `stripped_text` column (variable) which will be used again later for bigrams. 
 
-```r
-head(DragRace_tweets$stripped_text)
-```
+[1] "So to watch #DragRace #DragRaceS14 in the UK I’ve got to pay for yet another streaming service?!     \n\nNope. Pity though, was looking forward to it. 😒"
+[2] "if ru says willow’s name like that the whole season i think my entire skin will crawl off #DragRace"                                                      
+[3] "June and Orion are going to lip-sync foooooor theeeeeir liiiiiiiiiiives #DragRace"                                                                        
+[4] "Watching season 14 premiere of #DragRace "                                                                                                                
+[5] "Bosco... Thanks for that ending! #DragRace"                                                                                                               
+[6] "There's more depth to Willow Pill than her looks suggest, I like it #DragRace" 
 
-```
-## [1] "So to watch #DragRace #DragRaceS14 in the UK I’ve got to pay for yet another streaming service?!     \n\nNope. Pity though, was looking forward to it. 😒"
-## [2] "if ru says willow’s name like that the whole season i think my entire skin will crawl off #DragRace"                                                      
-## [3] "June and Orion are going to lip-sync foooooor theeeeeir liiiiiiiiiiives #DragRace"                                                                        
-## [4] "Watching season 14 premiere of #DragRace "                                                                                                                
-## [5] "Bosco... Thanks for that ending! #DragRace"                                                                                                               
-## [6] "There's more depth to Willow Pill than her looks suggest, I like it #DragRace"
-```
+
+
+
 
 ---
 # just the text - 2
@@ -232,19 +250,24 @@ This code **tokenizes** the words to allow for easy word counts and further text
 clean_DragRace_tweets = DragRace_tweets %&gt;% 
   select(stripped_text) %&gt;% 
   unnest_tokens(word, stripped_text) # tokens
+
+head(clean_DragRace_tweets)
 ```
 
----
-
-
-```r
-# head(clean_DragRace_tweets, 10)
-datatable(head(clean_DragRace_tweets, 10), editable = 'cell')
+```
+## # A tibble: 6 × 1
+##   word       
+##   &lt;chr&gt;      
+## 1 so         
+## 2 to         
+## 3 watch      
+## 4 dragrace   
+## 5 dragraces14
+## 6 in
 ```
 
-<div id="htmlwidget-459fe99be336c3f2e10d" style="width:100%;height:auto;" class="datatables html-widget"></div>
-<script type="application/json" data-for="htmlwidget-459fe99be336c3f2e10d">{"x":{"filter":"none","vertical":false,"editable":{"target":"cell","disable":{"columns":null},"numeric":[],"area":[]},"data":[["1","2","3","4","5","6","7","8","9","10"],["so","to","watch","dragrace","dragraces14","in","the","uk","i’ve","got"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>word<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"order":[],"autoWidth":false,"orderClasses":false,"columnDefs":[{"orderable":false,"targets":0}]}},"evals":[],"jsHooks":[]}</script>
 
+`clean_DragRace_tweets` has 164,460 obs. and 1 variable
 
 
 
@@ -282,22 +305,6 @@ clean_DragRace_tweets %&gt;%
 ## 10 for       1737
 ```
 
-```r
-head(clean_DragRace_tweets)
-```
-
-```
-## # A tibble: 6 × 1
-##   word       
-##   &lt;chr&gt;      
-## 1 so         
-## 2 to         
-## 3 watch      
-## 4 dragrace   
-## 5 dragraces14
-## 6 in
-```
-
 
 ---
 
@@ -305,17 +312,19 @@ head(clean_DragRace_tweets)
 
 
 --- 
-# Tweet Word Counts - 1.1
-
-`stopwords` are included in this plot
-
-![](slides_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
+# Tweet Word Counts - 1.1 
+`stopwords` included
+&lt;img src="slides_files/figure-html/unnamed-chunk-8-1.png" width="504" /&gt;
 
 
+ 
+ 
+ 
+ 
 ---
 # Tweet Word Counts - 1.2
 
-`stopwords` are removed from the data 
+`stopwords` are removed from the data. `clean_DragRace_words` has 85,994 obs.
 
 ```r
 # ========== tidytext stop_words + anti_join
@@ -347,7 +356,7 @@ clean_DragRace_words %&gt;%
 
 ---
 # Tweet Word Counts - 1.3
-![](slides_files/figure-html/unnamed-chunk-12-1.png)&lt;!-- --&gt;
+&lt;img src="slides_files/figure-html/unnamed-chunk-10-1.png" width="720" /&gt;
 
 
 
@@ -366,8 +375,8 @@ DragRace_tweets_paired_words = DragRace_tweets %&gt;%
   select(stripped_text) %&gt;% 
   unnest_tokens(paired_words, 
                 stripped_text, 
-                token="ngrams",
-                n= 2)
+                token= "ngrams",
+                n = 2) # 2 for bigram pairing
 
 DragRace_tweets_paired_words %&gt;% 
   count(paired_words, sort = T) %&gt;% 
@@ -391,7 +400,6 @@ DragRace_tweets_paired_words %&gt;%
 
 
 ---
-
 # word pair splitting
 
 we now split the bigrams into n-gram
@@ -428,11 +436,9 @@ head(DragRace_tweets_words_counts)
 
 
 ---
-
 # Graph the words
 
 Now that we have the n-grams and counted, we can graph them to see what words are associated together.
-
 
 graph of word network
 ```
@@ -441,8 +447,106 @@ DragRace_tweets_words_counts %&gt;%
   ggraph(layout = "fr")
 ```
 
+
+
+
+
 ---
-![](slides_files/figure-html/unnamed-chunk-15-1.png)&lt;!-- --&gt;
+&lt;img src="slides_files/figure-html/unnamed-chunk-13-1.png" width="864" /&gt;
+
+
+
+&lt;!-- ======  --&gt;
+
+---
+class: inverse, middle, center
+
+# #rstats Tweets 
+
+
+---
+# 1 &amp; 2 - #rstats &amp; save it
+
+We can search Twitter for the #rstats hashtag. The `#` is optional. Spaces in the query is treated as AND, the OR *must* be capitalized.
+
+
+
+```
+rstats_searched_tweets = search_tweets(
+  q = "rstats OR RStats",
+  n = 4000,
+  type = "mixed",
+  include_rts = FALSE,
+  parse = TRUE,
+  verbose = TRUE,
+  retryonratelimit = FALSE,
+  lang="en"
+)
+
+rstats_searched_tweets = write_as_csv(
+  rstats_searched_tweets,        # variable name used
+  file_name = "rstatsTweets",    # new variable name for CSV file
+  prepend_ids = TRUE,            # set to true
+  na = "",
+  fileEncoding = "UTF-8"         # save file in UTF-8
+)
+```
+
+
+
+
+
+
+---
+# 3 - read in the rstats tweets
+
+
+```
+rstats_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , 
+  unflatten = FALSE)
+```
+
+# 4 - ts_plot
+```
+# using the time series plot function for Twitter data
+
+ts_plot(rstats_tweets,          # dataframe of searched tweets
+        by= "mins",             # can plot by seconds (default), mins, days, etc
+        tz= "America/Edmonton", # your timezone 
+        col= 'white'             # default is black
+        )               
+```
+
+
+
+
+
+---
+# 5 - time series plot
+
+&lt;img src="slides_files/figure-html/unnamed-chunk-16-1.png" width="720" /&gt;
+
+
+
+
+
+---
+class: inverse, middle, center
+
+# The End
+
+
+
+---
+# Further Information
+
+- I have a full detailed rtweet guide (learnr file) that tells you pretty much all of the documentation with understandable examples. 
+
+- Twitter CSV datasets are available on GitHub for you to practice with for those without a API key. 
+
+- **Thank you** RLadies Coventry Heather Turner &amp; Sophie Hardy for this opportunity 🍁
+
+
 
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>

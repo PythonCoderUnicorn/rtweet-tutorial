@@ -2,7 +2,7 @@
 title: "rtweet tutorial"
 subtitle: "<br/>with RLadies"
 author: "🌈 Zane Dax (She/They) 🌈"
-institute: ""
+institute: "@StarTrek_Lt"
 date: "`r Sys.Date()`"
 output:
   xaringan::moon_reader:
@@ -49,12 +49,10 @@ class: inverse, center, middle
 
 # rtweet library
 
-Install the **rtweet** package from [Github](https://github.com/ropensci/rtweet):
+Install the **rtweet** package from [Github](https://github.com/ropensci/rtweet) or from CRAN:
 
 ```{r eval=FALSE, tidy=FALSE, message=FALSE, warning=FALSE}
-install.packages("rtweet")
-
-library(knitr)
+# install.packages("rtweet")
 library(rtweet)
 ```
 
@@ -90,70 +88,98 @@ class: inverse, middle, center
 
 
 
-# Hello Twitter Data
+# Needed libraries
 
-You will require a few more libraries to follow along with the slides:
+You will require a few more libraries to follow along with the slides: 
 
 ```{r message=FALSE, warning=FALSE}
-library(rtweet)
-library(tidyverse)
-library(ggplot2)
-library(tidytext)
-library(igraph)
-library(ggraph)
-library(showtext)
-library(widyr)
+library(rtweet)     # needed for Twitter API
+library(tidyverse)  # for data manipulation
+library(ggplot2)    # for plotting 
+library(tidytext)   # for text analysis
+library(ggraph)     # graphing words
+library(showtext)   # for font styling
+library(widyr)      # dataframe manipulation
 library(tidyr)
 library(DT)
 ```
 
-- `ggplot` is for data visualization 
-- `tidytext` is for text analysis
-- `ggraph` is for graphing the word frequencies together
-- `showtext` is to change the font style (not required but suggested)
+If you are not interested in graphing the word associations and frequencies, then you just need:
+- rtweet
+- tidyverse
+- ggplot
 
 
 ---
 
+# Step 1 - Find a #hashtag
 
-
-
-# Find a #hashtag
-
-You can see a trending hashtag on Twitter or use a word to get tweets on that specific hashtag. For this example we will use #DragRace. The rate limit is 
-18,000 tweets per API call. We are not interested in retweets for this hashtag and 
-set the function to false. Language settings are set to return English tweets only.
+You can see a trending hashtag on Twitter or use a word / phrase to get tweets on that specific hashtag/ phrase. For this example we will use #DragRace. The rate limit is 
+**max** 18,000 tweets per API call. We are not interested in retweets for this hashtag and set the function to false. Language settings are set to return English tweets only.
+**Note**: You can search tweets <= 9 days ago for free, otherwise you need to pay Twitter to access older tweets.
 
 **search Twitter for all tweets with #DragRace**
 
 ```
+# give your search_tweets() a variable
+
 DragRace_tweets = search_tweets2(
-  "#DragRace",
-  n= 18000,
-  lang="en",
-  include_rts=F
+  "#DragRace",         # hashtag we are interested in
+  n= 18000,            # max amount of tweets in 1 API request
+  lang = "en",         # English
+  include_rts = FALSE  # no retweets
 )
 ```
 
-It is **strongly advised** you make use of variable names for your Twitter data as to avoid `rate limit` (getting timed-out or Twitter account suspended)
+It is **strongly advised** you make use of variable names for your Twitter data as to avoid `rate limit` (getting timed-out for 15 minutes or Twitter Developer account suspended which is the account that has the API key). If you rate_limit too often, there will be the message in the console and you will lose privileges with the Twitter Developer account which makes your API key void.
+---
+
+
+
+--- 
+# Step 2 - Save your search Tweets
+
+This is very important to do as to avoid executing the `search_tweets2()` function again within 15 minutes and seeing a `rate_limit` warning message in the console. Seeing a `rate_limit` warning is scary to see but really means you have to wait at least 15 minutes to try to run the code again. 
+
+To get `rate limit` info for specific token (function call)
+- `token <- get_tokens()`
+- `rate_limit(token)`
+- `rate_limit(token, "search_tweets")`
 
 ```
+#   query         limit remaining reset    reset_at            timestamp           
+# 1 search/tweets   180       180 15.0119… 2021-09-02 09:42:08 2021-09-02 09:27:08 
+```
+
+**SAVE YOUR TWITTER SEARCHES**
+```
 DragRace_tweets = write_as_csv(
-  DragRace_tweets,
-  file_name = "DragRace_tweets",
-  prepend_ids = T,
-  na="",
-  fileEncoding = "UTF-8"
+  DragRace_tweets,               # variable name used
+  file_name = "DragRace_tweets", # new variable name for CSV file
+  prepend_ids = TRUE,            # set to true 
+  na = "",
+  fileEncoding = "UTF-8"         # save file in UTF-8 
 )
 ```
 
 
 ---
-# read in saved data
+# Step 3 - read in saved data
 
-```{r}
+```{r include=FALSE}
 DragRace_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , unflatten = FALSE)
 ```
+
+DragRace_tweets = read_twitter_csv(file = "../TwitterData/DragRace_tweets.csv" , 
+  unflatten = FALSE)
+
+`DragRace_tweets` has 13,000 rows (obs.) and 91 columns (variables)
+
+---
+class: inverse, middle, center
+
+# Text Analysis of Tweets
+
 
 
 
@@ -162,7 +188,8 @@ DragRace_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , 
 ---
 # #DragRace
 
-**The Twitter API returns lots of meta-data information.**
+**The Twitter API returns lots of meta-data information.** 
+Only 6 rows of the Tweets dataframe text is shown. This is raw Twitter text data that is messy with `url`s, emojis and `\n` new lines.
 
 this is `head(DragRace_tweets$text)`
 ```{r echo=FALSE}
@@ -183,7 +210,8 @@ this is `head(DragRace_tweets$text)`
 
 
 
-There are 92 columns for the Twitter data
+
+
 
 
 ---
@@ -194,12 +222,22 @@ The Twitter data we have is messy and has url links, need to remove them.
 # ======== remove URLs
 DragRace_tweets$stripped_text = gsub("http.*","", DragRace_tweets$text)
 DragRace_tweets$stripped_text = gsub("https*","", DragRace_tweets$stripped_text)
+
+# head(DragRace_tweets$stripped_text)
 ```
 
-```{r}
-head(DragRace_tweets$stripped_text)
+- Note: the dataframe has `stripped_text` column (variable) which will be used again later for bigrams. 
 
-```
+[1] "So to watch #DragRace #DragRaceS14 in the UK I’ve got to pay for yet another streaming service?!     \n\nNope. Pity though, was looking forward to it. 😒"
+[2] "if ru says willow’s name like that the whole season i think my entire skin will crawl off #DragRace"                                                      
+[3] "June and Orion are going to lip-sync foooooor theeeeeir liiiiiiiiiiives #DragRace"                                                                        
+[4] "Watching season 14 premiere of #DragRace "                                                                                                                
+[5] "Bosco... Thanks for that ending! #DragRace"                                                                                                               
+[6] "There's more depth to Willow Pill than her looks suggest, I like it #DragRace" 
+
+
+
+
 
 ---
 # just the text - 2
@@ -211,15 +249,12 @@ This code **tokenizes** the words to allow for easy word counts and further text
 clean_DragRace_tweets = DragRace_tweets %>% 
   select(stripped_text) %>% 
   unnest_tokens(word, stripped_text) # tokens
+
+head(clean_DragRace_tweets)
 ```
 
----
 
-```{r}
-# head(clean_DragRace_tweets, 10)
-datatable(head(clean_DragRace_tweets, 10), editable = 'cell')
-```
-
+`clean_DragRace_tweets` has 164,460 obs. and 1 variable
 
 
 
@@ -235,8 +270,6 @@ clean_DragRace_tweets %>%
   top_n(10) %>% 
   mutate(word= reorder(word, n))
 
-head(clean_DragRace_tweets)
-
 ```
 
 
@@ -246,18 +279,17 @@ head(clean_DragRace_tweets)
 
 
 --- 
-# Tweet Word Counts - 1.1
-
-`stopwords` are included in this plot
-
-```{r echo=FALSE, fig.width=10, message=FALSE, warning=FALSE}
+# Tweet Word Counts - 1.1 
+`stopwords` included
+```{r echo=FALSE, fig.width=7, fig.height=7, message=FALSE, warning=FALSE, fig.retina=3}
 clean_DragRace_tweets %>% 
   count(word, sort= T) %>% 
   top_n(20) %>% 
   mutate(word= reorder(word, n)) %>% 
   ggplot( aes(x= word, y= n))+
   geom_col(fill= "#d534eb")+
-  ggdark::dark_mode()+
+  # ggdark::dark_mode()+
+  theme_light() +
   coord_flip()+
   labs(title = "Twitter tweet word counts for #DragRace",
        x="unique words",
@@ -267,10 +299,14 @@ clean_DragRace_tweets %>%
 ```
 
 
+ 
+ 
+ 
+ 
 ---
 # Tweet Word Counts - 1.2
 
-`stopwords` are removed from the data 
+`stopwords` are removed from the data. `clean_DragRace_words` has 85,994 obs.
 ```{r warning=FALSE, message=FALSE}
 # ========== tidytext stop_words + anti_join
 clean_DragRace_words = clean_DragRace_tweets %>% 
@@ -285,7 +321,7 @@ clean_DragRace_words %>%
 
 ---
 # Tweet Word Counts - 1.3
-```{r echo=FALSE, fig.width=10, message=FALSE, warning=FALSE}
+```{r echo=FALSE, fig.width=10, message=FALSE, warning=FALSE, fig.retina=3}
 clean_DragRace_words %>% 
   count(word, sort= T) %>% 
   top_n(40) %>%
@@ -294,14 +330,16 @@ clean_DragRace_words %>%
   mutate(word = as_factor(word),
     word= reorder(word, n)) %>% 
   ggplot( aes(x= word, y= n))+
+  geom_text( aes(label= n, vjust= .5, hjust= -1), color= 'black')+
   geom_col(fill= "#d534eb")+
-  ggdark::dark_mode()+
+  # ggdark::dark_mode()+
+  theme_light() +
   coord_flip()+
   labs(title = "Twitter tweet word counts for #DragRace",
-       subtitle = "top 40 words. Retweets excluded. N = 824",
+       subtitle = "top 40 words. Retweets excluded. N = 85,994",
        x="unique words",
        y= "Count",
-       caption = "@StarTrek_Lt | Jan 3, 2022 | Source: Twitter API & {rtweet} package")+ 
+      )+ 
   theme(
    text =  element_text(family = 'Poppins'),
    plot.title = element_text(size = 15, 
@@ -329,8 +367,8 @@ DragRace_tweets_paired_words = DragRace_tweets %>%
   select(stripped_text) %>% 
   unnest_tokens(paired_words, 
                 stripped_text, 
-                token="ngrams",
-                n= 2)
+                token= "ngrams",
+                n = 2) # 2 for bigram pairing
 
 DragRace_tweets_paired_words %>% 
   count(paired_words, sort = T) %>% 
@@ -342,7 +380,6 @@ DragRace_tweets_paired_words %>%
 
 
 ---
-
 # word pair splitting
 
 we now split the bigrams into n-gram
@@ -366,11 +403,9 @@ head(DragRace_tweets_words_counts)
 
 
 ---
-
 # Graph the words
 
 Now that we have the n-grams and counted, we can graph them to see what words are associated together.
-
 
 graph of word network
 ```
@@ -379,24 +414,170 @@ DragRace_tweets_words_counts %>%
   ggraph(layout = "fr")
 ```
 
+
+
+
+
 ---
-```{r echo=FALSE, fig.width=12, fig.height=10}
+```{r echo=FALSE, fig.width=12, fig.height=10, warning=FALSE, fig.retina=3}
 DragRace_tweets_words_counts %>% 
   # words > 24
   filter(n >= 10) %>% 
   # graph_from_data_frame() %>% 
   ggraph(layout = "fr")+
-  ggdark::dark_mode()+
+  # ggdark::dark_mode()+
+  theme_light()+
   geom_node_point(color="#e757fa", size=3)+
   geom_node_text( aes(label= name), vjust= 1.8, size= 4)+
   labs(title = "Twitter word network for #DragRace",
-       subtitle = "Text Mining:  N= 13000 tweets, word counts >= 10",
+       subtitle = "Text Mining:  N= 21,998 tweets, word counts >= 10",
        x="",
        y="",
-       caption="@StarTrek_Lt | Jan 8, 2022 | Source: Twitter API | Sample Size: N= 3285 split words")+
-  theme(text = element_text(family = 'Poppins'),
+       )+
+  theme(text = element_text(family = 'Poppins', color='black'),
         plot.title = element_text(color = '#e757fa', size = 14),
         plot.caption = element_text(color = 'grey60', hjust = 0, size = 10)
         )
 ```
+
+
+
+<!-- ======  -->
+
+---
+class: inverse, middle, center
+
+# #rstats Tweets 
+
+
+---
+# 1 & 2 - #rstats & save it
+
+We can search Twitter for the #rstats hashtag. The `#` is optional. Spaces in the query is treated as AND, the OR *must* be capitalized.
+
+```{r eval=FALSE, include=FALSE}
+rstats_searched_tweets = search_tweets(
+  q = "rstats OR RStats",
+  n = 4000,
+  type = "mixed",
+  include_rts = FALSE,
+  parse = TRUE,
+  verbose = TRUE,
+  retryonratelimit = FALSE,
+  lang="en"
+)
+
+rstats_searched_tweets = write_as_csv(
+  rstats_searched_tweets,        # variable name used
+  file_name = "rstatsTweets",   # new variable name for CSV file
+  prepend_ids = TRUE,            # set to true
+  na = "",
+  fileEncoding = "UTF-8"         # save file in UTF-8
+)
+```
+
+```
+rstats_searched_tweets = search_tweets(
+  q = "rstats OR RStats",
+  n = 4000,
+  type = "mixed",
+  include_rts = FALSE,
+  parse = TRUE,
+  verbose = TRUE,
+  retryonratelimit = FALSE,
+  lang="en"
+)
+
+rstats_searched_tweets = write_as_csv(
+  rstats_searched_tweets,        # variable name used
+  file_name = "rstatsTweets",    # new variable name for CSV file
+  prepend_ids = TRUE,            # set to true
+  na = "",
+  fileEncoding = "UTF-8"         # save file in UTF-8
+)
+```
+
+
+
+
+
+
+---
+# 3 - read in the rstats tweets
+```{r include=FALSE}
+rstats_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , unflatten = FALSE)
+```
+
+```
+rstats_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , 
+  unflatten = FALSE)
+```
+
+# 4 - ts_plot
+```
+# using the time series plot function for Twitter data
+
+ts_plot(rstats_tweets,          # dataframe of searched tweets
+        by= "mins",             # can plot by seconds (default), mins, days, etc
+        tz= "America/Edmonton", # your timezone 
+        col= 'white'             # default is black
+        )               
+```
+
+
+
+
+
+---
+# 5 - time series plot
+
+```{r echo=FALSE, fig.width=10, message=FALSE, warning=FALSE, fig.retina=3}
+ts_plot(rstats_tweets, 
+        by="mins",
+        tz= "America/Edmonton",
+        col='white'
+        # trim = 1
+        )+
+  labs(title = "Twitter searched: 'rstats' OR 'RStats' tweets by minute ",
+       x="date",
+       y="count")+ 
+  # ggdark::dark_mode()+
+  # theme_light()+
+  theme_minimal()+
+  theme(
+    text =  element_text(family = 'Poppins', size = 13, color = 'white'),
+    plot.title = element_text(size = 15, 
+                             face = 'bold',
+                             color ="white" ),
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 12),
+    panel.background = element_rect(fill = '#442263')
+   ) + theme(panel.grid.major = element_line(colour = "mediumorchid4"),
+    panel.grid.minor = element_line(colour = "mediumorchid4"),
+    axis.title = element_text(colour = "white"),
+    axis.text = element_text(colour = "gray"),
+    plot.background = element_rect(fill = "#442263"))
+```
+
+
+
+
+
+---
+class: inverse, middle, center
+
+# The End
+
+
+
+---
+# Further Information
+
+- I have a detailed rtweet guide (learnr file) that tells you pretty much all of the documentation with understandable examples. 
+
+- Twitter CSV datasets are available on GitHub for you to practice with for those without a API key. 
+
+- **Thank you** RLadies Coventry Heather Turner & Sophie Hardy for this opportunity 🍁
+
+
 
