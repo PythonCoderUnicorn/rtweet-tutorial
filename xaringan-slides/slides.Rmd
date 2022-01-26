@@ -1,6 +1,6 @@
 ---
 title: "rtweet tutorial"
-subtitle: "<br/>with RLadies"
+subtitle: "<br/>with R-Ladies Coventry"
 author: "🌈 Zane Dax (She/They) 🌈"
 institute: "@StarTrek_Lt"
 date: "`r Sys.Date()`"
