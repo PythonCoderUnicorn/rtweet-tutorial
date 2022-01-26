@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>rtweet tutorial</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="🌈 Zane Dax (She/They) 🌈" />
+    <meta name="date" content="2022-01-26" />
+    <script src="libs/header-attrs/header-attrs.js"></script>
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/rladies.css" rel="stylesheet" />
+    <link href="libs/remark-css/rladies-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# rtweet tutorial
+## <br/>with R-Ladies Coventry
+### 🌈 Zane Dax (She/They) 🌈
+### <span class="citation">@StarTrek_Lt</span>
+### 2022-01-26
+
+---
+
+
+
+
+
+
+
+
+
+class: inverse,center
+background-image: url("slides_files/RLadies\ bg.png")
+# rtweet
+
+![rladies](slides_files/rtweet_R_logo 2.png)
+
+
+
+
+
+
+
+---
+class: inverse, center, middle
+
+# Get Started
+
+---
+
+
+
+
+
+# rtweet library
+
+Install the **rtweet** package from [Github](https://github.com/ropensci/rtweet) or from CRAN:
+
+
+```r
+# install.packages("rtweet")
+library(rtweet)
+```
+
+--
+
+You are required to have a Twitter API access key in order to 
+use the library.
+
+- A user *must* authenticate their interaction with Twitter's API. If 
+you already have an access token key, then a browser popup will 
+appear where you need to click on permissions and verification.
+
+--
+
+- Once you have this set up you are ready to go
+
+--
+
+.footnote[
+[1] my documentation is based on using a MacOS version 12.1
+
+[2] See Twitter API documentation for full details and explanations
+]
+
+
+
+---
+class: inverse, middle, center
+
+# Data Mine the hashtags
+
+---
+
+
+
+# Needed libraries
+
+You will require a few more libraries to follow along with the slides: 
+
+
+```r
+library(rtweet)     # needed for Twitter API
+library(tidyverse)  # for data manipulation
+library(ggplot2)    # for plotting 
+library(tidytext)   # for text analysis
+library(ggraph)     # graphing words
+library(showtext)   # for font styling
+library(widyr)      # dataframe manipulation
+library(tidyr)
+library(DT)
+```
+
+If you are not interested in graphing the word associations and frequencies, then you just need:
+- rtweet
+- tidyverse
+- ggplot
+
+
+---
+
+# Step 1 - Find a #hashtag
+
+You can see a trending hashtag on Twitter or use a word / phrase to get tweets on that specific hashtag/ phrase. For this example we will use #DragRace. The rate limit is 
+**max** 18,000 tweets per API call. We are not interested in retweets for this hashtag and set the function to false. Language settings are set to return English tweets only.
+**Note**: You can search tweets &lt;= 9 days ago for free, otherwise you need to pay Twitter to access older tweets.
+
+**search Twitter for all tweets with #DragRace**
+
+```
+# give your search_tweets() a variable
+
+DragRace_tweets = search_tweets2(
+  "#DragRace",         # hashtag we are interested in
+  n= 18000,            # max amount of tweets in 1 API request
+  lang = "en",         # English
+  include_rts = FALSE  # no retweets
+)
+```
+
+It is **strongly advised** you make use of variable names for your Twitter data as to avoid `rate limit` (getting timed-out for 15 minutes or Twitter Developer account suspended which is the account that has the API key). If you rate_limit too often, there will be the message in the console and you will lose privileges with the Twitter Developer account which makes your API key void.
+---
+
+
+
+--- 
+# Step 2 - Save your search Tweets
+
+This is very important to do as to avoid executing the `search_tweets2()` function again within 15 minutes and seeing a `rate_limit` warning message in the console. Seeing a `rate_limit` warning is scary to see but really means you have to wait at least 15 minutes to try to run the code again. 
+
+To get `rate limit` info for specific token (function call)
+- `token &lt;- get_tokens()`
+- `rate_limit(token)`
+- `rate_limit(token, "search_tweets")`
+
+```
+#   query         limit remaining reset    reset_at            timestamp           
+# 1 search/tweets   180       180 15.0119… 2021-09-02 09:42:08 2021-09-02 09:27:08 
+```
+
+**SAVE YOUR TWITTER SEARCHES**
+```
+DragRace_tweets = write_as_csv(
+  DragRace_tweets,               # variable name used
+  file_name = "DragRace_tweets", # new variable name for CSV file
+  prepend_ids = TRUE,            # set to true 
+  na = "",
+  fileEncoding = "UTF-8"         # save file in UTF-8 
+)
+```
+
+
+---
+# Step 3 - read in saved data
+
+
+
+DragRace_tweets = read_twitter_csv(file = "../TwitterData/DragRace_tweets.csv" , 
+  unflatten = FALSE)
+
+`DragRace_tweets` has 13,000 rows (obs.) and 91 columns (variables)
+
+---
+class: inverse, middle, center
+
+# Text Analysis of Tweets
+
+
+
+
+
+
+---
+# #DragRace
+
+**The Twitter API returns lots of meta-data information.** 
+Only 6 rows of the Tweets dataframe text is shown. This is raw Twitter text data that is messy with `url`s, emojis and `\n` new lines.
+
+this is `head(DragRace_tweets$text)`
+
+
+[1] "So to watch #DragRace #DragRaceS14 in the UK I’ve got to pay for yet another streaming service?!     \n\nNope. Pity though, was looking forward to it. 😒"
+[2] "if ru says willow’s name like that the whole season i think my entire skin will crawl off #DragRace"                                              
+[3] "June and Orion are going to lip-sync foooooor theeeeeir liiiiiiiiiiives #DragRace"                                                                 
+[4] "Watching season 14 premiere of #DragRace https://t.co/1iaHPzPj7L"     
+[5] "Bosco... Thanks for that ending! #DragRace"                          
+[6] "There's more depth to Willow Pill than her looks suggest, I like it #DragRace"  
+
+
+
+
+
+
+
+---
+# just the text - 1
+
+The Twitter data we have is messy and has url links, need to remove them.
+
+```r
+# ======== remove URLs
+DragRace_tweets$stripped_text = gsub("http.*","", DragRace_tweets$text)
+DragRace_tweets$stripped_text = gsub("https*","", DragRace_tweets$stripped_text)
+
+# head(DragRace_tweets$stripped_text)
+```
+
+- Note: the dataframe has `stripped_text` column (variable) which will be used again later for bigrams. 
+
+[1] "So to watch #DragRace #DragRaceS14 in the UK I’ve got to pay for yet another streaming service?!     \n\nNope. Pity though, was looking forward to it. 😒"
+[2] "if ru says willow’s name like that the whole season i think my entire skin will crawl off #DragRace"                                                      
+[3] "June and Orion are going to lip-sync foooooor theeeeeir liiiiiiiiiiives #DragRace"                                                                        
+[4] "Watching season 14 premiere of #DragRace "                                                                                                                
+[5] "Bosco... Thanks for that ending! #DragRace"                                                                                                               
+[6] "There's more depth to Willow Pill than her looks suggest, I like it #DragRace" 
+
+
+
+
+
+---
+# just the text - 2
+
+This code **tokenizes** the words to allow for easy word counts and further text analysis. 
+
+
+```r
+# ===== tidytext::unnest_tokens()
+clean_DragRace_tweets = DragRace_tweets %&gt;% 
+  select(stripped_text) %&gt;% 
+  unnest_tokens(word, stripped_text) # tokens
+
+head(clean_DragRace_tweets)
+```
+
+```
+## # A tibble: 6 × 1
+##   word       
+##   &lt;chr&gt;      
+## 1 so         
+## 2 to         
+## 3 watch      
+## 4 dragrace   
+## 5 dragraces14
+## 6 in
+```
+
+
+`clean_DragRace_tweets` has 164,460 obs. and 1 variable
+
+
+
+---
+# Tweet Word Counts - 1
+
+Top 10 words, counted and sorted 
+
+
+```r
+# == plot, word counts of clean text  (stopwords included)
+clean_DragRace_tweets %&gt;% 
+  count(word, sort= T) %&gt;% 
+  top_n(10) %&gt;% 
+  mutate(word= reorder(word, n))
+```
+
+```
+## Selecting by n
+```
+
+```
+## # A tibble: 10 × 2
+##    word         n
+##    &lt;fct&gt;    &lt;int&gt;
+##  1 dragrace 12798
+##  2 the       5391
+##  3 i         3544
+##  4 is        2994
+##  5 to        2589
+##  6 a         2573
+##  7 and       2397
+##  8 of        2222
+##  9 this      1869
+## 10 for       1737
+```
+
+
+---
+
+
+
+
+--- 
+# Tweet Word Counts - 1.1 
+`stopwords` included
+&lt;img src="slides_files/figure-html/unnamed-chunk-8-1.png" width="504" /&gt;
+
+
+ 
+ 
+ 
+ 
+---
+# Tweet Word Counts - 1.2
+
+`stopwords` are removed from the data. `clean_DragRace_words` has 85,994 obs.
+
+```r
+# ========== tidytext stop_words + anti_join
+clean_DragRace_words = clean_DragRace_tweets %&gt;% 
+  anti_join(stop_words)
+
+clean_DragRace_words %&gt;% 
+  count(word, sort= T) %&gt;% 
+  top_n(10) %&gt;%
+  filter(word &gt; 10)
+```
+
+```
+## # A tibble: 10 × 2
+##    word                n
+##    &lt;chr&gt;           &lt;int&gt;
+##  1 dragrace        12798
+##  2 season           1497
+##  3 willow           1386
+##  4 kornbread        1327
+##  5 rupaulsdragrace   931
+##  6 kerri             834
+##  7 love              798
+##  8 drag              753
+##  9 i’m               741
+## 10 14                595
+```
+
+
+---
+# Tweet Word Counts - 1.3
+&lt;img src="slides_files/figure-html/unnamed-chunk-10-1.png" width="720" /&gt;
+
+
+
+
+---
+
+# bigram and n-grams
+
+
+```r
+# ============= NETWORK OF WORDS !
+library(widyr)
+
+# bigrams. n-grams
+DragRace_tweets_paired_words = DragRace_tweets %&gt;% 
+  select(stripped_text) %&gt;% 
+  unnest_tokens(paired_words, 
+                stripped_text, 
+                token= "ngrams",
+                n = 2) # 2 for bigram pairing
+
+DragRace_tweets_paired_words %&gt;% 
+  count(paired_words, sort = T) %&gt;% 
+  top_n(5)
+```
+
+```
+## # A tibble: 6 × 2
+##   paired_words     n
+##   &lt;chr&gt;        &lt;int&gt;
+## 1 season 14      541
+## 2 willow pill    514
+## 3 i love         411
+## 4 in the         408
+## 5 drag race      393
+## 6 of the         393
+```
+
+
+
+
+
+---
+# word pair splitting
+
+we now split the bigrams into n-gram
+
+```r
+# ======== word pair splitting
+library(tidyr)
+
+DragRace_tweets_word_splits = DragRace_tweets_paired_words %&gt;% 
+  separate(paired_words, c('word1','word2'), sep = " ")
+
+DragRace_tweets_filtered &lt;- DragRace_tweets_word_splits %&gt;%
+  filter(!word1 %in% stop_words$word) %&gt;%
+  filter(!word2 %in% stop_words$word)
+
+# new bigram counts:
+DragRace_tweets_words_counts &lt;- DragRace_tweets_filtered %&gt;%
+  count(word1, word2, sort = TRUE)
+
+head(DragRace_tweets_words_counts)
+```
+
+```
+## # A tibble: 6 × 3
+##   word1           word2               n
+##   &lt;chr&gt;           &lt;chr&gt;           &lt;int&gt;
+## 1 season          14                541
+## 2 willow          pill              514
+## 3 drag            race              393
+## 4 dragrace        rupaulsdragrace   276
+## 5 kerri           colby             270
+## 6 rupaulsdragrace dragrace          209
+```
+
+
+---
+# Graph the words
+
+Now that we have the n-grams and counted, we can graph them to see what words are associated together.
+
+graph of word network
+```
+DragRace_tweets_words_counts %&gt;% 
+  filter(n &gt;= 10) %&gt;% 
+  ggraph(layout = "fr")
+```
+
+
+
+
+
+---
+&lt;img src="slides_files/figure-html/unnamed-chunk-13-1.png" width="864" /&gt;
+
+
+
+&lt;!-- ======  --&gt;
+
+---
+class: inverse, middle, center
+
+# #rstats Tweets 
+
+
+---
+# 1 &amp; 2 - #rstats &amp; save it
+
+We can search Twitter for the #rstats hashtag. The `#` is optional. Spaces in the query is treated as AND, the OR *must* be capitalized.
+
+
+
+```
+rstats_searched_tweets = search_tweets(
+  q = "rstats OR RStats",
+  n = 4000,
+  type = "mixed",
+  include_rts = FALSE,
+  parse = TRUE,
+  verbose = TRUE,
+  retryonratelimit = FALSE,
+  lang="en"
+)
+
+rstats_searched_tweets = write_as_csv(
+  rstats_searched_tweets,        # variable name used
+  file_name = "rstatsTweets",    # new variable name for CSV file
+  prepend_ids = TRUE,            # set to true
+  na = "",
+  fileEncoding = "UTF-8"         # save file in UTF-8
+)
+```
+
+
+
+
+
+
+---
+# 3 - read in the rstats tweets
+
+
+```
+rstats_tweets = read_twitter_csv(file ="../TwitterData/DragRace_tweets.csv" , 
+  unflatten = FALSE)
+```
+
+# 4 - ts_plot
+```
+# using the time series plot function for Twitter data
+
+ts_plot(rstats_tweets,          # dataframe of searched tweets
+        by= "mins",             # can plot by seconds (default), mins, days, etc
+        tz= "America/Edmonton", # your timezone 
+        col= 'white'             # default is black
+        )               
+```
+
+
+
+
+
+---
+# 5 - time series plot
+
+&lt;img src="slides_files/figure-html/unnamed-chunk-16-1.png" width="720" /&gt;
+
+
+
+
+
+---
+class: inverse, middle, center
+
+# The End
+
+
+
+---
+# Further Information
+
+- I have a detailed rtweet guide (learnr file) that tells you pretty much all of the documentation with understandable examples. 
+
+- Twitter CSV datasets are available on GitHub for you to practice with for those without a API key. 
+
+- **Thank you** RLadies Coventry Heather Turner &amp; Sophie Hardy for this opportunity 🍁
+
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
